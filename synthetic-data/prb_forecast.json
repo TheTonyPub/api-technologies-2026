@@ -1,7 +1,0 @@
-{
-  "schema_version": "1.0",
-  "product_id": "wheat-demo-17",
-  "horizon_days": 7,
-  "historical_demand": [101, 104, 99, 108, 111, 107, 115]
-}
-
