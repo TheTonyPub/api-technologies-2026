@@ -7,8 +7,8 @@
 | Работа | Что делаем | Инструкция |
 |---|---|---|
 | Семинар 1+2 | Выделяем сервисы и их взаимодействия, проектируем архитектуру, выбираем протоколы и переходим к контрактам API. | [Часть 1: архитектура](https://github.com/TheTonyPub/api-technologies-2026/tree/seminar/01-team-architecture) · [Часть 2: API-контракты](https://github.com/TheTonyPub/api-technologies-2026/tree/seminar/02-openapi-contract) |
-| ДЗ 1 | Описываем архитектуру назначенного кейса: C4-диаграммы, взаимодействие сервисов и обоснование выбранных технологий. | [seminar/01-team-architecture](https://github.com/TheTonyPub/api-technologies-2026/tree/seminar/01-team-architecture) |
-| ДЗ 2 | Описываем все REST-взаимодействия между внутренними и внешними сервисами и готовим отдельный контракт OpenAPI 3.2.1 для каждого REST API. | [seminar/02-openapi-contract](https://github.com/TheTonyPub/api-technologies-2026/tree/seminar/02-openapi-contract) |
+| ДЗ 1 | Описываем архитектуру назначенного кейса: C4-диаграммы, взаимодействие сервисов и обоснование выбранных технологий. | [Проработка архитектуры](https://github.com/TheTonyPub/api-technologies-2026/tree/seminar/01-team-architecture#домашнее-задание-1-архитектура-командного-проекта) |
+| ДЗ 2 | Описываем все REST-взаимодействия между внутренними и внешними сервисами и готовим отдельный контракт OpenAPI 3.2.1 для каждого REST API. | [Разработка контрактов](https://github.com/TheTonyPub/api-technologies-2026/tree/seminar/02-openapi-contract#домашнее-задание-2-контракты-взаимодействия) |
 
 В ДЗ 1 и ДЗ 2 не требуется реализация сервисов: сдаётся архитектура, документация и контракты.
 
