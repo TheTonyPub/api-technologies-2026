@@ -6,9 +6,9 @@
 
 | Работа | Что делаем | Инструкция |
 |---|---|---|
-| Семинар 1+2 | Выделяем сервисы и их взаимодействия, проектируем архитектуру, выбираем протоколы и переходим к контрактам API. | [Часть 1: архитектура](https://github.com/TheTonyPub/api-technologies-2026/tree/seminar/01-api-scenarios) · [Часть 2: API-контракты](https://github.com/TheTonyPub/api-technologies-2026/tree/seminar/02-openapi-contract) |
-| ДЗ 1 | Описываем архитектуру назначенного кейса: C4-диаграммы, взаимодействие сервисов и обоснование выбранных технологий. | [seminar/01-api-scenarios](https://github.com/TheTonyPub/api-technologies-2026/tree/seminar/01-api-scenarios) |
-| ДЗ 2 | Описываем внешние и внутренние взаимодействия, проектируем API и готовим OpenAPI-контракты проектируемых HTTP-сервисов. | [seminar/02-openapi-contract](https://github.com/TheTonyPub/api-technologies-2026/tree/seminar/02-openapi-contract) |
+| Семинар 1+2 | Выделяем сервисы и их взаимодействия, проектируем архитектуру, выбираем протоколы и переходим к контрактам API. | [Часть 1: архитектура](https://github.com/TheTonyPub/api-technologies-2026/tree/seminar/01-team-architecture) · [Часть 2: API-контракты](https://github.com/TheTonyPub/api-technologies-2026/tree/seminar/02-openapi-contract) |
+| ДЗ 1 | Описываем архитектуру назначенного кейса: C4-диаграммы, взаимодействие сервисов и обоснование выбранных технологий. | [seminar/01-team-architecture](https://github.com/TheTonyPub/api-technologies-2026/tree/seminar/01-team-architecture) |
+| ДЗ 2 | Описываем все REST-взаимодействия между внутренними и внешними сервисами и готовим отдельный контракт OpenAPI 3.2.1 для каждого REST API. | [seminar/02-openapi-contract](https://github.com/TheTonyPub/api-technologies-2026/tree/seminar/02-openapi-contract) |
 
 В ДЗ 1 и ДЗ 2 не требуется реализация сервисов: сдаётся архитектура, документация и контракты.
 
@@ -16,14 +16,16 @@
 
 1. Один участник команды делает fork основного репозитория и добавляет остальных участников как collaborators в fork.
 2. Команда переключается на ветку соответствующего семинара в основном репозитории:
-   - ДЗ 1 — `seminar/01-api-scenarios`;
+   - ДЗ 1 — `seminar/01-team-architecture`;
    - ДЗ 2 — `seminar/02-openapi-contract`.
 3. От ветки семинара команда создаёт в своём fork ветку `homework/<num>-<short-name>`, например `homework/01-team-architecture` или `homework/02-openapi-contract`.
-4. Все материалы ДЗ и история их изменений находятся только в этой ветке домашнего задания.
+4. Все материалы ДЗ и история их изменений находятся только в этой ветке домашнего задания. Ветка каждого следующего ДЗ должна сохранять все файлы предыдущих работ.
 5. Команда открывает pull request из `homework/<num>-<short-name>` своего fork в соответствующую ветку `seminar/<num>-<short-name>` основного репозитория.
 6. Для сдачи передаётся ссылка на pull request. В описании PR укажите состав команды, распределение ролей и итоговый commit.
 
 Каждый участник команды должен сделать хотя бы один содержательный commit. Не объединяйте всю работу в один итоговый commit: история должна показывать последовательную работу над архитектурой, документацией и контрактами.
+
+Бинарные изображения, документы, архивы, аудио и видео должны добавляться через Git LFS согласно правилам из `.gitattributes`.
 
 ## Дедлайны
 
