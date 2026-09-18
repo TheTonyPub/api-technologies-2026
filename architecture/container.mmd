@@ -1,0 +1,45 @@
+C4Container
+    title Контейнерная диаграмма Антифрод-системы
+
+    Person(customer, "Клиент банка", "Инициирует транзакции")
+    Person(analysts, "Команда аналитиков", "Обучает ML-модели")
+
+    System_Ext(abs, "АБС", "Банковская система")
+    System_Ext(sources, "Внешние источники", "Данные о клиентах")
+
+    System_Boundary(antifraud, "Антифрод-система") {
+        Container(gateway, "Точка входа", "Go, REST/gRPC", "Приём событий")
+        Container(enrichment, "Дополнение данных", "Python, gRPC", "Данные о клиенте")
+        Container(features, "Статистика клиента", "Go, gRPC", "Агрегаты клиента")
+        Container(ml, "ML-сервис", "Python, gRPC", "Инференс модели")
+        Container(rules, "Решение", "Go, gRPC", "Вердикт 1/0")
+        Container(etl, "Загрузчик ETL", "Python, Airflow", "История в витрину")
+        Container(kafka, "Очередь событий", "Kafka", "События проверок")
+        ContainerDb(redis, "Кэш", "Redis 7", "Горячие агрегаты")
+        ContainerDb(clickhouse, "История транзакций", "ClickHouse 24", "История клиентов")
+        ContainerDb(s3, "Файлы ML-моделей", "S3/MinIO", "Версии моделей")
+    }
+
+    Rel(customer, abs, "Транзакция")
+    Rel(abs, gateway, "Событие")
+    Rel(abs, etl, "История")
+
+    Rel(gateway, enrichment, "Данные")
+    Rel(enrichment, sources, "Запрос")
+
+    Rel(gateway, features, "Агрегаты")
+    Rel(features, redis, "Кэш")
+    Rel(features, clickhouse, "История")
+
+    Rel(gateway, ml, "Признаки")
+    Rel(ml, s3, "Модель")
+    Rel(ml, rules, "Скор")
+    Rel(rules, gateway, "Вердикт")
+    Rel(gateway, abs, "Ответ")
+
+    Rel(gateway, kafka, "Событие")
+    Rel(kafka, etl, "События")
+
+    Rel(analysts, s3, "Модели")
+    Rel(etl, clickhouse, "Загрузка")
+    Rel(etl, redis, "Обновление")
