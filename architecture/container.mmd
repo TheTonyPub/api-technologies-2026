@@ -8,11 +8,11 @@ C4Container
     System_Ext(sources, "Внешние источники", "Данные о клиентах")
 
     System_Boundary(antifraud, "Антифрод-система") {
-        Container(gateway, "Точка входа", "Go, REST/gRPC", "Приём событий")
+        Container(gateway, "Точка входа", "Python, REST/gRPC", "Приём событий")
         Container(enrichment, "Дополнение данных", "Python, gRPC", "Данные о клиенте")
-        Container(features, "Статистика клиента", "Go, gRPC", "Агрегаты клиента")
+        Container(features, "Статистика клиента", "Python, gRPC", "Агрегаты клиента")
         Container(ml, "ML-сервис", "Python, gRPC", "Инференс модели")
-        Container(rules, "Решение", "Go, gRPC", "Вердикт 1/0")
+        Container(rules, "Решение", "Python, gRPC", "Вердикт 1/0")
         Container(etl, "Загрузчик ETL", "Python, Airflow", "История в витрину")
         Container(kafka, "Очередь событий", "Kafka", "События проверок")
         ContainerDb(redis, "Кэш", "Redis 7", "Горячие агрегаты")
