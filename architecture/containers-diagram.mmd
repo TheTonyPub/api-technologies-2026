@@ -1,0 +1,41 @@
+C4Container
+    title Уровень 2 · Контейнеры CapacityForecast · Кандидат v2
+
+    Person(engineer, "Инженер / DevOps-инженер", "Управляет серверами и ИС, настраивает пороги, смотрит историю и прогнозы")
+    System_Ext(monitoredServers, "Серверы информационных систем", "Источник метрик CPU/RAM/диска (агенты мониторинга)")
+    System_Ext(sitCenter, "Ситуационный центр", "Внешний dashboard актуального и прогнозируемого состояния")
+    System_Ext(notifyChannels, "Каналы уведомлений (Email / Push)", "Внешние сервисы доставки уведомлений")
+
+    System_Boundary(forecastSystem, "CapacityForecast") {
+        Container_Boundary(accessLayer, "Доступ") {
+            Container(webUi, "Web UI", "React / TypeScript SPA", "Интерфейс инженера: серверы, ИС, история нагрузки, прогнозы, пороги")
+            Container(api, "API", "REST/HTTPS, Node.js", "Единая точка входа: аутентификация, CRUD серверов/ИС/порогов, чтение прогнозов и текущего состояния")
+        }
+        Container_Boundary(workers, "Обработка") {
+            Container(metricsCollector, "Metrics Collector", "Go", "Принимает метрики CPU/RAM/диска от агентов раз в минуту, пишет их в Hot Store и Data Store")
+            Container(forecastWorker, "Forecast Worker", "Python (ML-модели)", "Строит прогнозы нагрузки на горизонты 1 день / 1 мес / 6 мес / 1 год")
+            Container(alertWorker, "Alert Worker", "Go", "Сравнивает прогнозы на 1 день и 1 месяц с допустимыми порогами и инициирует уведомления")
+        }
+        Container_Boundary(storage, "Хранилища") {
+            ContainerDb(hotStore, "Hot Store", "Redis", "Кэш свежих (NRT) метрик для прогноза на горизонте 1 день")
+            ContainerDb(dataStore, "Data Store", "TimescaleDB / PostgreSQL", "Единое хранилище: история метрик, серверы, ИС, пороги, прогнозы")
+        }
+    }
+
+    Rel(engineer, webUi, "Смотрит историю и прогнозы, настраивает пороги", "HTTPS")
+    Rel(webUi, api, "Запрашивает данные", "HTTPS / JSON")
+    Rel(sitCenter, api, "Запрашивает актуальное и прогнозируемое состояние", "HTTPS / WebSocket")
+
+    Rel(monitoredServers, metricsCollector, "Передаёт метрики CPU/RAM/диска", "каждую минуту, HTTP")
+    Rel(metricsCollector, hotStore, "Пишет свежие (NRT) метрики", "Redis protocol")
+    Rel(metricsCollector, dataStore, "Пишет историю метрик", "SQL")
+
+    Rel(api, dataStore, "Читает/пишет серверы, ИС, пороги; читает прогнозы", "SQL")
+
+    Rel(forecastWorker, hotStore, "Читает NRT-метрики (для прогноза на 1 день)", "Redis protocol")
+    Rel(forecastWorker, dataStore, "Читает историю (для 1 мес / 6 мес / 1 год), сохраняет прогнозы", "SQL")
+
+    Rel(alertWorker, dataStore, "Читает прогнозы (1 день / 1 месяц) и пороги", "SQL")
+    Rel(alertWorker, notifyChannels, "Отправляет уведомление о превышении порога", "SMTP / HTTP webhook")
+
+    UpdateLayoutConfig($c4ShapeInRow="2", $c4BoundaryInRow="3")
