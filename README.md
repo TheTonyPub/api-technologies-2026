@@ -59,3 +59,7 @@ git lfs install
 git lfs ls-files
 ```
 EOF
+git lfs install
+git lfs ls-files
+```
+EOF
