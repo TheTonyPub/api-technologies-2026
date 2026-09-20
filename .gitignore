@@ -6,8 +6,4 @@ __pycache__/
 .env
 build/
 cmake-build-*/
-# Игнорируем картинки, чтобы не ловить ошибки LFS на GitHub
-*.png
-*.jpg
-*.jpeg
-*.svg
+
