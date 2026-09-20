@@ -10,8 +10,35 @@ C4Context
     System_Ext(ext_sources, "Внешние источники", "Предоставляют данные о клиенте (возраст, геолокация).")
     System_Ext(s3, "S3 / Хранилище моделей", "Хранит ML-модели, обученные аналитиками.")
 
-    Rel(client, abs, "Инициирует транзакцию")
-    Rel(abs, antifraud, "Отправляет событие и получает вердикт")
-    Rel(antifraud, ext_sources, "Запрашивает доп. данные")
-    Rel(analyst_team, s3, "Загружает модели")
-    Rel(antifraud, s3, "Берет модели для инференса")
+
+    System_Ext(abs, "АБС", "Банковская система")
+    System_Ext(sources, "Внешние источники", "Данные о клиентах")
+    System_Ext(datalake, "Data Lake", "S3 + Iceberg", "Исторические данные клиентов")
+    System_Ext(s3, "Хранилище моделей", "S3 / MinIO", "Версии ML-моделей")
+
+    System_Boundary(antifraud, "Антифрод-система") {
+        Container(features, "Статистика клиента", "Python, REST/gRPC", "Приём событий и агрегаты")
+        Container(ml, "ML-сервис", "Python, gRPC", "Инференс модели")
+        Container(rules, "Решение", "Python, gRPC", "Вердикт 1/0")
+        Container(etl, "Загрузчик ETL", "Python, Airflow", "История в витрину")
+        ContainerDb(redis, "Кэш", "Redis 7", "Горячие агрегаты")
+    }
+
+    Rel(customer, abs, "Транзакция")
+    Rel(abs, features, "Событие")
+    Rel(abs, etl, "История")
+
+    Rel(features, redis, "Кэш")
+    Rel(features, ml, "Признаки")
+    Rel(ml, s3, "Модель")
+    Rel(ml, rules, "Скор")
+    Rel(rules, features, "Вердикт")
+    Rel(features, abs, "Ответ")
+
+    Rel(analysts, s3, "Модели")
+
+    Rel(etl, datalake, "Загрузка")
+    Rel(datalake, etl, "Чтение")
+    Rel(etl, redis, "Обновление")
+    Rel(etl, sources, "Запрос")
+
