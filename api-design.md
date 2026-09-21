@@ -63,20 +63,18 @@ AI Tools Directory - dealsbe.com
 http://README.md
 
 ## 7. Проверка контрактов
+### Контракт: Back API
+**Автор:** Семенова Дарья
+**Файл:** `contracts/back-api/openapi.yaml`  
+**Инструмент и версия:** `openapi-spec-validator 0.9.0`  
+**Действия:** CLI-валидация командой `openapi-spec-validator contracts/back-api/openapi.yaml` + проверка в Swagger Editor.
+**Результат:** CLI — OK; в Swagger Editor операция `POST /v1/transactions/evaluate` отображается корректно, схемы и примеры соответствуют друг другу.
 
-### Контракт Front API
-**Автор:** Плуталова Елена (Контрактник-2)
-**Файл:** `contracts/front-api/openapi.yaml`
-**Инструмент 1:** openapi-spec-validator 0.9.0
-**Команда:** `openapi-spec-validator contracts/front-api/openapi.yaml`
-**Результат:** OK
 
-**Инструмент 2:** Swagger Editor (editor-next.swagger.io)
-**Результат:** операции, схемы и примеры отображаются корректно, замечаний нет.
+### Контракт: Front API
 
-### Замечания 
-1. Нет примера в `requestBody` для `POST /models`.
-2. Нет примеров ответов с ошибками (400, 404, 500).
-
-### Вывод: контракт синтаксически валиден. Требует доработки по требованиям задания.
-AI Tools Directory - dealsbe.com
+**Автор:** Плуталова Елена
+**Файл:** `contracts/front-api/openapi.yaml`  
+**Инструмент и версия:** `openapi-spec-validator 0.9.0`  
+**Действия:** CLI-валидация командой `openapi-spec-validator contracts/front-api/openapi.yaml` + проверка в Swagger Editor.
+**Результат:** CLI — OK; в Swagger Editor все эндпоинты отображаются, примеры соответствуют схемам; запросы к серверу не выполнялись.  
