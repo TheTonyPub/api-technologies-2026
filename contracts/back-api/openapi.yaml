@@ -1,23 +1,20 @@
 openapi: 3.1.0
-
 info:
   title: External API
-  description: Внешнее API антифрод-системы. Получает данные клиента из Online-витрины и принимает ML-модели от аналитиков.
+  description: >-
+    Внешнее API антифрод-системы. Получает данные клиента из Online-витрины и
+    принимает ML-модели от аналитиков.
   version: 1.0.0
-
 servers:
-  - url: https://first.bank.local/v1
+  - url: 'https://first.bank.local/v1'
     description: Основной сервер
-
 tags:
   - name: Clients
     description: Данные о клиенте из внешнего источника
   - name: Models
     description: ML-модели от команды аналитиков
-
 paths:
-
-  /clients/{client_id}:
+  '/clients/{client_id}':
     get:
       summary: Получить данные клиента
       tags:
@@ -29,7 +26,10 @@ paths:
           description: ID клиента
           schema:
             type: string
-            example: client_5267
+          examples:
+            default:
+              summary: Пример ID клиента
+              value: client_5267
       responses:
         '200':
           description: Данные клиента найдены
@@ -40,20 +40,59 @@ paths:
                 properties:
                   client_id:
                     type: string
-                    example: client_5267
                   age:
                     type: integer
-                    example: 19
                   geo:
                     type: string
-                    example: RU-MOW
+              examples:
+                success:
+                  summary: Успешный ответ с данными клиента
+                  value:
+                    client_id: client_5267
+                    age: 19
+                    geo: RU-MOW
         '400':
           description: Неправильный ID клиента
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              examples:
+                bad_request:
+                  summary: Пример ошибки 400
+                  value:
+                    error: Invalid client_id format
         '404':
           description: Клиент не найден во внешнем источнике
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              examples:
+                not_found:
+                  summary: Пример ошибки 404
+                  value:
+                    error: Client not found
         '500':
           description: Внешний источник недоступен
-
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              examples:
+                server_error:
+                  summary: Пример ошибки 500
+                  value:
+                    error: External source unavailable
   /models:
     post:
       summary: Загрузить ML-модель
@@ -71,20 +110,71 @@ paths:
               properties:
                 name:
                   type: string
-                  example: fraud-detector
                 version:
                   type: string
-                  example: '1.4.2'
+            examples:
+              new_model:
+                summary: Пример загрузки новой модели
+                value:
+                  name: fraud-detector
+                  version: 1.4.2
       responses:
         '201':
           description: Модель загружена и сохранена в S3/MinIO
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+              examples:
+                created:
+                  summary: Модель успешно создана
+                  value:
+                    status: Model uploaded successfully
         '400':
           description: Не хватает name или version
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              examples:
+                missing_fields:
+                  summary: Пример ошибки 400
+                  value:
+                    error: 'Missing required fields: name, version'
         '409':
           description: Такая версия модели уже есть
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              examples:
+                conflict:
+                  summary: Пример ошибки 409
+                  value:
+                    error: Model version 1.4.2 already exists
         '500':
           description: Не удалось сохранить модель
-
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              examples:
+                server_error:
+                  summary: Пример ошибки 500
+                  value:
+                    error: Failed to save model to storage
     get:
       summary: Получить список моделей
       tags:
@@ -101,12 +191,31 @@ paths:
                   properties:
                     name:
                       type: string
-                      example: fraud-detector
                     version:
                       type: string
-                      example: '1.4.2'
                     status:
                       type: string
-                      example: active
+              examples:
+                model_list:
+                  summary: Пример списка моделей
+                  value:
+                    - name: fraud-detector
+                      version: 1.4.2
+                      status: active
+                    - name: fraud-detector
+                      version: 1.3.0
+                      status: archived
         '500':
           description: Не удалось получить список моделей
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+              examples:
+                server_error:
+                  summary: Пример ошибки 500
+                  value:
+                    error: Internal server error
