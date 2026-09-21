@@ -1,0 +1,127 @@
+openapi: 3.1.0
+info:
+  title: Back API / Точка входа
+  description: Принимает транзакцию от АБС, проверяет на фрод и отдает вердикт.
+  version: 1.0.0
+paths:
+  /v1/transactions/evaluate:
+    post:
+      summary: Проверить транзакцию на фрод
+      operationId: evaluate_transaction_v1_transactions_evaluate_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionRequest'
+        required: true
+      responses:
+        '200':
+          description: Всё ок, вердикт готов
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionVerdictResponse'
+        '400':
+          description: АБС прислала битые данные
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Эндпоинт не найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Ошибка валидации (например, отрицательная сумма)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Сервер упал / ошибка бэка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    ErrorResponse:
+      properties:
+        code:
+          type: string
+          title: Code
+          description: Код ошибки
+          example: BAD_REQUEST
+        message:
+          type: string
+          title: Message
+          description: Что пошло не так
+          example: Неверная сумма
+      type: object
+      required:
+      - code
+      - message
+      title: ErrorResponse
+    TransactionRequest:
+      properties:
+        transaction_id:
+          type: string
+          title: Transaction Id
+          description: ID транзакции из АБС
+          example: tx-777
+        account_id:
+          type: string
+          title: Account Id
+          description: Чей счет
+          example: acc-12345
+        amount:
+          type: number
+          exclusiveMinimum: 0.0
+          title: Amount
+          description: Сумма (должна быть > 0)
+          example: 5000.0
+        currency:
+          type: string
+          title: Currency
+          description: Валюта
+          default: RUB
+          example: RUB
+        timestamp:
+          type: string
+          title: Timestamp
+          description: Время отправки
+          example: '2026-09-21T10:00:00Z'
+      type: object
+      required:
+      - transaction_id
+      - account_id
+      - amount
+      - timestamp
+      title: TransactionRequest
+    TransactionVerdictResponse:
+      properties:
+        transaction_id:
+          type: string
+          title: Transaction Id
+          description: ID транзакции
+        verdict:
+          $ref: '#/components/schemas/VerdictEnum'
+          description: 0 - Одобрено, 1 - Фрод
+        evaluated_at:
+          type: string
+          title: Evaluated At
+          description: Время вынесения вердикта
+      type: object
+      required:
+      - transaction_id
+      - verdict
+      - evaluated_at
+      title: TransactionVerdictResponse
+    VerdictEnum:
+      type: integer
+      enum:
+      - 0
+      - 1
+      title: VerdictEnum
