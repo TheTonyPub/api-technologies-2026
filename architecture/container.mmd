@@ -1,19 +1,12 @@
-C4Context
-    title Контекстная диаграмма Антифрод-системы
+C4Container
+    title Контейнерная диаграмма Антифрод-системы
 
-    Person(client, "Клиент банка", "Инициирует транзакции")
-    Person(analyst_team, "Команда аналитиков", "Обучает ML-модели")
-    
-    System(antifraud, "Антифрод-система", "Проверяет транзакции на мошенничество")
-    
-    System_Ext(abs, "АБС", "Автоматизированная банковская система. Отправляет события транзакций.")
-    System_Ext(ext_sources, "Внешние источники", "Предоставляют данные о клиенте (возраст, геолокация).")
-    System_Ext(s3, "S3 / Хранилище моделей", "Хранит ML-модели, обученные аналитиками.")
-
+    Person(customer, "Клиент банка", "Инициирует транзакции")
+    Person(analysts, "Команда аналитиков", "Обучает ML-модели")
 
     System_Ext(abs, "АБС", "Банковская система")
     System_Ext(sources, "Внешние источники", "Данные о клиентах")
-    System_Ext(datalake, "Data Lake", "S3 + Iceberg", "Исторические данные клиентов")
+    System_Ext(datalake, "Data Lake", "S3 + Iceberg", "Исторические данные")
     System_Ext(s3, "Хранилище моделей", "S3 / MinIO", "Версии ML-моделей")
 
     System_Boundary(antifraud, "Антифрод-система") {
@@ -27,18 +20,14 @@ C4Context
     Rel(customer, abs, "Транзакция")
     Rel(abs, features, "Событие")
     Rel(abs, etl, "История")
-
     Rel(features, redis, "Кэш")
     Rel(features, ml, "Признаки")
     Rel(ml, s3, "Модель")
     Rel(ml, rules, "Скор")
     Rel(rules, features, "Вердикт")
     Rel(features, abs, "Ответ")
-
     Rel(analysts, s3, "Модели")
-
     Rel(etl, datalake, "Загрузка")
     Rel(datalake, etl, "Чтение")
     Rel(etl, redis, "Обновление")
     Rel(etl, sources, "Запрос")
-
