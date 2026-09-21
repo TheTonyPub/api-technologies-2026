@@ -1,0 +1,20 @@
+C4Context
+    title Контекстная диаграмма — Платформа данных по юридическим лицам
+
+    Person(manager, "Сотрудник банка")
+
+    System_Ext(spark, "СПАРК Интерфакс", "Источник данных о юрлицах")
+
+    System(platform, "Платформа данных по юрлицам", "Загрузка, хранение и выдача данных о клиентах-ЮЛ")
+
+    System_Ext(crm, "CRM")
+    System_Ext(abs, "АБС")
+    System_Ext(analytics, "Аналитический контур")
+
+    Rel(platform, spark, "Запрашивает данные ЮЛ", "REST")
+    Rel(crm, platform, "Запрашивает данные клиента", "REST/JSON")
+    Rel(abs, platform, "Запрашивает данные клиента", "REST/JSON")
+    Rel(platform, analytics, "Передаёт данные", "ETL")
+    Rel(manager, crm, "Использует")
+
+    UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")
