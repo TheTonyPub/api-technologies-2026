@@ -87,6 +87,16 @@ async def create_user(payload: UserCreate) -> UserCreated:
     return UserCreated(user_id=cursor.lastrowid)
 
 
+@app.get("v1/user/{user_id}", status_code=200, response_model=UserResponse)
+async def get_user_data(user_id: int) -> UserResponse:
+    with database() as connection:
+        row = connection.execute(
+            "SELECT user_id, age, sex FROM users WHERE user_id = ?", (user_id,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="User not found")
+        return UserResponse(user_id=row["user_id"], age=row["age"], sex=row["sex"])
+
 @app.put("/v1/user/{user_id}", status_code=201, response_model=UserResponse)
 async def update_user(user_id: int, payload: UserUpdate) -> UserResponse:
     updates: list[str] = []
