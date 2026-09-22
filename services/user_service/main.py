@@ -87,7 +87,7 @@ async def create_user(payload: UserCreate) -> UserCreated:
     return UserCreated(user_id=cursor.lastrowid)
 
 
-@app.get("v1/user/{user_id}", status_code=200, response_model=UserResponse)
+@app.get("/v1/user/{user_id}", status_code=200, response_model=UserResponse)
 async def get_user_data(user_id: int) -> UserResponse:
     with database() as connection:
         row = connection.execute(
