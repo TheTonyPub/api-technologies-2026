@@ -1,49 +1,58 @@
-# API-технологии — 2026
+# Семинар 3: взаимодействие API
 
-Репозиторий для сдачи командных работ по курсу. Домашние задания продолжают один семестровый проект: результат каждого следующего ДЗ опирается на результаты предыдущих.
+Три независимых FastAPI-сервиса: валидация ML-запросов, SQLite и защищённая
+фоновая обработка CSV.
 
-## Работы и инструкции
+## Запуск
 
-| Работа | Что делаем | Инструкция |
-|---|---|---|
-| Семинар 1+2 | Выделяем сервисы и их взаимодействия, проектируем архитектуру, выбираем протоколы и переходим к контрактам API. | [Часть 1: архитектура](https://github.com/TheTonyPub/api-technologies-2026/tree/seminar/01-team-architecture) · [Часть 2: API-контракты](https://github.com/TheTonyPub/api-technologies-2026/tree/seminar/02-openapi-contract) |
-| ДЗ 1 | Описываем архитектуру назначенного кейса: C4-диаграммы, взаимодействие сервисов и обоснование выбранных технологий. | [seminar/01-team-architecture](https://github.com/TheTonyPub/api-technologies-2026/tree/seminar/01-team-architecture) |
-| ДЗ 2 | Описываем все REST-взаимодействия между внутренними и внешними сервисами и готовим отдельный контракт OpenAPI 3.2.1 для каждого REST API. | [seminar/02-openapi-contract](https://github.com/TheTonyPub/api-technologies-2026/tree/seminar/02-openapi-contract) |
+```sh
+cp .env.example .env
+docker compose up --build
+```
 
-В ДЗ 1 и ДЗ 2 не требуется реализация сервисов: сдаётся архитектура, документация и контракты.
+Swagger: [ML Service](http://localhost:8001/docs),
+[User Service](http://localhost:8002/docs),
+[CSV Processor](http://localhost:8003/docs).
 
-## Как сдавать домашние задания
+## ML Service — 8001
 
-1. Один участник команды делает fork основного репозитория и добавляет остальных участников как collaborators в fork.
-2. Команда переключается на ветку соответствующего семинара в основном репозитории:
-   - ДЗ 1 — `seminar/01-team-architecture`;
-   - ДЗ 2 — `seminar/02-openapi-contract`.
-3. От ветки семинара команда создаёт в своём fork ветку `homework/<num>-<short-name>`, например `homework/01-team-architecture` или `homework/02-openapi-contract`.
-4. Все материалы ДЗ и история их изменений находятся только в этой ветке домашнего задания. Ветка каждого следующего ДЗ должна сохранять все файлы предыдущих работ.
-5. Команда открывает pull request из `homework/<num>-<short-name>` своего fork в соответствующую ветку `seminar/<num>-<short-name>` основного репозитория.
-6. Для сдачи передаётся ссылка на pull request. В описании PR укажите состав команды, распределение ролей и итоговый commit.
+- `GET /v1/models`: `linear-score`, `risk-label`.
+- `POST /v1/predict`: `model`, `feature1` — целое `0..100`, `feature2` —
+  число `0..1`, `feature3` — строка длиной `1..32`.
+- `linear-score` возвращает число. `risk-label` возвращает `low`, `medium` или
+  `high`; одинаковые признаки дают детерминированные, но различающиеся ответы.
+- Неизвестная модель: 404. Невалидные признаки: 422.
 
-Каждый участник команды должен сделать хотя бы один содержательный commit. Не объединяйте всю работу в один итоговый commit: история должна показывать последовательную работу над архитектурой, документацией и контрактами.
+```sh
+curl -X POST http://localhost:8001/v1/predict \
+  -H 'content-type: application/json' \
+  -d '{"model":"linear-score","feature1":42,"feature2":0.35,"feature3":"premium"}'
+```
 
-Бинарные изображения, документы, архивы, аудио и видео должны добавляться через Git LFS согласно правилам из `.gitattributes`.
+## User Service — 8002
 
-## Дедлайны
+- `POST /v1/user`: `age` `6..90`, `sex` `male|female`; 201 и `user_id`.
+- `PUT /v1/user/{user_id}` обновляет один или оба поля; 201.
+- Отсутствующий пользователь: 404. Пустой или невалидный payload: 422.
+- SQLite хранится в Docker volume `user-data`.
 
-Время указано по Москве (UTC+3).
+## CSV Processor — 8003
 
-| Домашнее задание | Soft deadline | Hard deadline |
-|---|---|---|
-| ДЗ 1 | `2026-09-21 23:59:59` | `2026-09-25 08:59:59` |
-| ДЗ 2 | `2026-09-21 23:59:59` | `2026-09-25 08:59:59` |
+`PROCESSING_TOKEN` хранится в локальном `.env`.
 
-- До soft deadline включительно можно получить полный балл за работу.
-- После soft deadline и до hard deadline включительно максимальный балл за ДЗ составляет 50% от полного балла.
+- `GET /v1/example`: CSV без авторизации.
+- `POST /v1/process`: Bearer token, `text/csv`, 202 и UUID `run_id`.
+- Ровно `feature1,feature2,feature3`; первые две колонки числовые, максимум
+  100 строк.
+- Фоновая задача ждёт секунду, прибавляет 10 к числам, оставляет первый символ
+  текста.
+- `GET /v1/data/{run_id}` с Bearer token выдаёт CSV один раз; до готовности и
+  после выдачи возвращает 404.
 
-## Разбалловка
-
-Распределение баллов по домашним заданиям будет опубликовано позже. Таблица пока оставлена незаполненной.
-
-| Домашнее задание | Максимальный балл до soft deadline | Максимальный балл после soft deadline и до hard deadline |
-|---|---:|---:|
-| ДЗ 1 |  |  |
-| ДЗ 2 |  |  |
+```sh
+TOKEN=$(sed -n 's/^PROCESSING_TOKEN=//p' .env)
+curl -X POST http://localhost:8003/v1/process \
+  -H "authorization: Bearer $TOKEN" \
+  -H 'content-type: text/csv' \
+  --data-binary $'feature1,feature2,feature3\n1,2.5,hello\n'
+```

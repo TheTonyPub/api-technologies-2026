@@ -1,0 +1,9 @@
+.git
+.gitignore
+.env
+.venv
+__pycache__
+*.py[cod]
+seminar03.html
+architecture
+docker-compose.yaml

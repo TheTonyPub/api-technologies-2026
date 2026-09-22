@@ -1,0 +1,29 @@
+services:
+  ml-service:
+    build: .
+    command: uvicorn services.ml_service.main:app --host 0.0.0.0 --port 8001
+    ports:
+      - "8001:8001"
+
+  user-service:
+    build: .
+    command: uvicorn services.user_service.main:app --host 0.0.0.0 --port 8002
+    environment:
+      USER_DB_PATH: /data/users.db
+    ports:
+      - "8002:8002"
+    volumes:
+      - user-data:/data
+
+  csv-processor:
+    build: .
+    command: uvicorn services.csv_processor.main:app --host 0.0.0.0 --port 8003
+    env_file:
+      - .env
+    environment:
+      OUTPUT_DIR: /data
+    ports:
+      - "8003:8003"
+
+volumes:
+  user-data:
