@@ -3,9 +3,9 @@ openapi: 3.1.0
 info:
   title: ML Service API
   description: >-
-    Это API нашего ML-сервиса, который проверяет транзакции. 
-    Он берет данные, прогоняет через модель и выдает вердикт. 
-    Сами модели лежат в S3, сервис их оттуда подтягивает при старте.
+    API ML-сервиса антифрода. Получает признаки клиента от сервиса статистики,
+    прогоняет через модель и отдает скор. Модели лежат в S3, сервис их подтягивает
+    при старте. Сам решение не выносит — это делает отдельный контейнер "Решение".
   version: 1.0.0
 
 servers:
@@ -14,19 +14,19 @@ servers:
 
 tags:
   - name: Inference
-    description: Проверка транзакций (инференс)
+    description: Инференс модели (получение скора)
   - name: Models
     description: Список моделей (только чтение, они в S3)
 
 paths:
   /inference/check:
     post:
-      summary: Проверить транзакцию
+      summary: Получить скор по признакам
       tags:
         - Inference
       description: >-
-        Получает данные транзакции от АБС, применяет модель и возвращает решение.
-        В ответе пишу, какая модель использовалась и что она показала.
+        Принимает признаки клиента от статистики, применяет модель и возвращает скор.
+        Решение (BLOCKED/APPROVED) принимает уже сервис "Решение".
       requestBody:
         required: true
         content:
@@ -34,74 +34,73 @@ paths:
             schema:
               $ref: '#/components/schemas/InferenceRequest'
             examples:
-              new_transaction:
-                summary: Пример транзакции
+              test_features:
+                summary: Пример признаков
                 value:
                   transaction_id: "tx_98765"
                   client_id: "client_5267"
-                  amount: 15000.50
-                  currency: "RUB"
-                  merchant_id: "shop_001"
+                  features:
+                    avg_amount_30d: 12500.75
+                    tx_count_24h: 3
+                    geo_risk: 0.15
+                    merchant_risk: 0.05
       responses:
         '200':
-          description: Результат проверки
+          description: Скор от модели
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/InferenceResponse'
               examples:
-                fraud_detected:
-                  summary: Пример, где сработала модель
+                high_risk:
+                  summary: Высокий риск
                   value:
                     transaction_id: "tx_98765"
-                    status: "BLOCKED"
-                    risk_score: 0.98
-                    reason: "High risk transaction pattern"
+                    score: 0.98
                     check_details:
                       tool: "fraud-detector"
                       version: "1.4.2"
                       action: "Inference"
                       actual_result: "Fraud probability > 0.9"
-                legit_transaction:
-                  summary: Пример одобренной транзакции
+                low_risk:
+                  summary: Низкий риск
                   value:
                     transaction_id: "tx_98765"
-                    status: "APPROVED"
-                    risk_score: 0.05
-                    reason: "Normal behavior"
+                    score: 0.05
                     check_details:
                       tool: "fraud-detector"
                       version: "1.4.2"
                       action: "Inference"
                       actual_result: "Fraud probability < 0.1"
         '400':
-          description: Ошибка в данных транзакции
+          description: Что-то не так с признаками
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
               examples:
                 bad_request:
-                  summary: Пример ошибки 400
+                  summary: Пример 400
                   value:
-                    error: "Invalid transaction data"
+                    error: "Invalid features data"
         '500':
-          description: Внутренняя ошибка (например, модель не загружена)
+          description: Внутренняя ошибка (модель не загрузилась и т.п.)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
               examples:
                 server_error:
-                  summary: Пример ошибки 500
+                  summary: Пример 500
                   value:
                     error: "ML model not loaded"
+
   /models:
     get:
-      summary: Получить список моделей
+      summary: Список моделей
       tags:
         - Models
-      description: Возвращает модели, которые лежат в S3 и доступны для инференса.
+      description: Показывает, какие модели лежат в S3 и доступны для инференса.
       responses:
         '200':
           description: Список моделей
@@ -122,27 +121,25 @@ paths:
                       version: "1.3.0"
                       status: "archived"
         '500':
-          description: Не удалось получить список
+          description: Не получилось отдать список
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
               examples:
                 server_error:
-                  summary: Пример ошибки 500
+                  summary: Пример 500
                   value:
                     error: "Failed to fetch model list"
 
 components:
   schemas:
-    # Что присылает АБС
     InferenceRequest:
       type: object
       required:
         - transaction_id
         - client_id
-        - amount
-        - currency
+        - features
       properties:
         transaction_id:
           type: string
@@ -150,39 +147,45 @@ components:
         client_id:
           type: string
           description: ID клиента
-        amount:
-          type: number
-          format: float
-          description: Сумма
-        currency:
-          type: string
-          description: Валюта (ISO 4217)
-        merchant_id:
-          type: string
-          description: ID магазина
+        features:
+          type: object
+          description: Признаки клиента
+          required:
+            - avg_amount_30d
+            - tx_count_24h
+          properties:
+            avg_amount_30d:
+              type: number
+              format: float
+              description: Средняя сумма за 30 дней
+            tx_count_24h:
+              type: integer
+              description: Сколько транзакций за сутки
+            geo_risk:
+              type: number
+              format: float
+              description: Гео-риск
+            merchant_risk:
+              type: number
+              format: float
+              description: Риск мерчанта
 
     InferenceResponse:
       type: object
       properties:
         transaction_id:
           type: string
-        status:
-          type: string
-          enum: [APPROVED, BLOCKED, REVIEW]
-        risk_score:
+        score:
           type: number
           format: float
-          description: Оценка риска от 0 до 1
-        reason:
-          type: string
-          description: Причина решения
+          description: Скор от модели (0..1)
         check_details:
           type: object
           description: Детали проверки
           properties:
             tool:
               type: string
-              description: Инструмент (модель)
+              description: Модель
             version:
               type: string
               description: Версия
