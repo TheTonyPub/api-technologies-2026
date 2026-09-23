@@ -1,0 +1,214 @@
+openapi: 3.2.1
+info:
+  title: ML Model
+  version: 1.0.0
+  description: |
+    Внутренний API. Модель скоринга потенциального клиента, её вызывает только Scoring Service.
+    В базу модель не ходит, признаки ей присылает Scoring Service.
+    Проверку доступа внутри платформы здесь не описываем, считаем что это сеть и инфраструктура.
+
+    Контракт учебный. Данные и адреса в примерах выдуманные.
+servers:
+  - url: https://ml-model.platform.example
+    description: Выдуманный адрес для примера
+tags:
+  - name: Predictions
+    description: Расчёт вероятности
+paths:
+  /v1/predictions:
+    post:
+      tags: [Predictions]
+      operationId: createPrediction
+      summary: Вероятность того, что компания станет клиентом банка
+      description: |
+        Принимает признаки компании и возвращает вероятность от 0 до 1. Вызывает Scoring Service.
+        Модель ничего не сохраняет и не создаёт, поэтому успех это 200, а не 201.
+        POST используется только потому, что признаки передаются в теле запроса.
+
+        Для Scoring Service отводим на ответ модели до 400 мс, чтобы весь скоринг уложился в 1 секунду.
+        Это наше допущение, пока не измеряли. groupBankClientsCount не должен быть больше groupSize,
+        схема этого не проверяет, поэтому модель должна вернуть 400.
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PredictionRequest'
+            examples:
+              typical:
+                summary: Компания из группы из трёх компаний, две из них клиенты банка
+                value:
+                  features:
+                    companyAgeMonths: 158
+                    mainActivityCode: '64.19'
+                    status: ACTIVE
+                    groupSize: 3
+                    groupBankClientsCount: 2
+      responses:
+        '200':
+          description: Вероятность посчитана.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PredictionResponse'
+              examples:
+                predicted:
+                  value:
+                    probability: 0.73
+                    modelVersion: lead-scoring-2026.09.1
+                    predictedAt: '2026-09-23T10:42:11Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+components:
+  schemas:
+    PredictionRequest:
+      type: object
+      required: [features]
+      properties:
+        features:
+          $ref: '#/components/schemas/Features'
+    Features:
+      type: object
+      description: Признаки компании, которые готовит Scoring Service.
+      required: [companyAgeMonths, mainActivityCode, status, groupSize, groupBankClientsCount]
+      properties:
+        companyAgeMonths:
+          type: integer
+          minimum: 0
+          maximum: 1200
+          description: Сколько полных месяцев прошло с регистрации.
+          example: 158
+        mainActivityCode:
+          type: string
+          pattern: '^[0-9]{2}(\.[0-9]{1,2}){0,2}$'
+          description: Код основного вида деятельности (ОКВЭД).
+          example: '64.19'
+        status:
+          type: string
+          enum: [ACTIVE, LIQUIDATING, LIQUIDATED]
+          example: ACTIVE
+        groupSize:
+          type: integer
+          minimum: 0
+          maximum: 500
+          description: Сколько компаний в группе. Если группы нет, 0.
+          example: 3
+        groupBankClientsCount:
+          type: integer
+          minimum: 0
+          maximum: 500
+          description: Сколько компаний группы уже клиенты банка.
+          example: 2
+    PredictionResponse:
+      type: object
+      required: [probability, modelVersion, predictedAt]
+      properties:
+        probability:
+          type: number
+          minimum: 0
+          maximum: 1
+          example: 0.73
+        modelVersion:
+          type: string
+          example: lead-scoring-2026.09.1
+        predictedAt:
+          type: string
+          format: date-time
+          example: '2026-09-23T10:42:11Z'
+    Error:
+      type: object
+      description: Так выглядит любая ошибка во всех API платформы.
+      required: [code, message, traceId]
+      properties:
+        code:
+          type: string
+          description: Код ошибки, по нему клиент решает, что делать дальше.
+          enum: [INVALID_REQUEST, UNAUTHORIZED, COMPANY_NOT_FOUND, INTERNAL_ERROR, SERVICE_UNAVAILABLE, UPSTREAM_TIMEOUT]
+          example: COMPANY_NOT_FOUND
+        message:
+          type: string
+          description: Короткое описание ошибки для разработчика.
+          example: Компания с таким ИНН не найдена
+        traceId:
+          type: string
+          description: Совпадает с заголовком X-Request-Id в ответе. Пригодится, если надо разобраться в логах.
+          example: 3f2b8c1e-7a44-4d0e-9a55-1c2d3e4f5a6b
+        details:
+          type: array
+          description: Что именно не так с полями запроса. Есть только в ответе 400.
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+    ErrorDetail:
+      type: object
+      required: [field, problem]
+      properties:
+        field:
+          type: string
+          example: inn
+        problem:
+          type: string
+          example: должно быть ровно 10 цифр
+  parameters:
+    XRequestId:
+      name: X-Request-Id
+      in: header
+      required: false
+      description: Идентификатор запроса (UUID). Нужен, чтобы находить запрос в логах разных сервисов. Если не передать, сервис создаст свой.
+      schema:
+        type: string
+        format: uuid
+      example: 3f2b8c1e-7a44-4d0e-9a55-1c2d3e4f5a6b
+  headers:
+    X-Request-Id:
+      description: Идентификатор запроса. Если клиент его прислал, возвращаем то же значение, иначе создаём свой.
+      required: true
+      schema:
+        type: string
+        format: uuid
+      example: 3f2b8c1e-7a44-4d0e-9a55-1c2d3e4f5a6b
+  responses:
+    BadRequest:
+      description: 'Тело запроса не подходит под схему: нет обязательного признака или значение вне диапазона.'
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            badFeature:
+              value:
+                code: INVALID_REQUEST
+                message: 'Неверное значение признака groupSize'
+                traceId: 3f2b8c1e-7a44-4d0e-9a55-1c2d3e4f5a6b
+                details:
+                  - field: features.groupSize
+                    problem: должно быть целым числом от 0 до 500
+    InternalError:
+      description: 'Внутренняя ошибка сервиса.'
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: 'Сервис или то, от чего он зависит (база, кэш, другой сервис, ML-модель), сейчас недоступны.'
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

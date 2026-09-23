@@ -1,0 +1,268 @@
+openapi: 3.2.1
+info:
+  title: Client Info Service
+  version: 1.0.0
+  description: |
+    Внутренний API. Отдаёт данные о компании по ИНН, его вызывает только API Gateway.
+    Данные сервис читает из кэша Redis, а при промахе из актуального среза в PostgreSQL.
+    Проверку доступа внутри платформы здесь не описываем, считаем что это сеть и инфраструктура.
+
+    Контракт учебный. Данные и адреса в примерах выдуманные.
+servers:
+  - url: https://client-info-service.platform.example
+    description: Выдуманный адрес для примера
+tags:
+  - name: Companies
+    description: Данные о юридическом лице
+paths:
+  /v1/companies/{inn}:
+    get:
+      tags: [Companies]
+      operationId: getCompanyByInn
+      summary: Данные о юридическом лице по ИНН
+      description: |
+        Возвращает актуальные данные о компании. Вызывает API Gateway.
+        Данные берутся из актуального среза, история SCD2 не используется.
+        Сначала ищем в кэше (Redis), если там нет, читаем актуальный срез из базы.
+        Запрос только читает данные и ничего не меняет.
+
+        Если ИНН в срезе нет, вернётся 404. Загружать компанию из СПАРК по запросу мы не будем:
+        загрузка одного клиента занимает до 10 секунд, а ответ должен уложиться в 1 секунду.
+        Эти 1 секунду мы пока не измеряли, это требование проекта. Насколько свежие данные, видно по dataAsOf.
+      parameters:
+        - $ref: '#/components/parameters/Inn'
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '200':
+          description: Данные о компании.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyInfo'
+              examples:
+                inGroup:
+                  summary: Компания из группы, клиент банка
+                  value:
+                    inn: '7700000001'
+                    ogrn: '1027700000001'
+                    kpp: '770001001'
+                    shortName: ООО «Ромашка Демо»
+                    fullName: Общество с ограниченной ответственностью «Ромашка Демо»
+                    status: ACTIVE
+                    registrationDate: '2012-03-15'
+                    legalAddress: г. Москва, ул. Примерная, д. 1
+                    mainActivity:
+                      code: '64.19'
+                      name: Денежное посредничество прочее
+                    groupId: grp-000042
+                    isBankClient: true
+                    dataAsOf: '2026-09-23T06:15:00Z'
+                noGroup:
+                  summary: Компания без группы, не клиент банка, КПП нет
+                  value:
+                    inn: '7700000002'
+                    ogrn: '1027700000002'
+                    kpp: null
+                    shortName: ООО «Лютик Демо»
+                    status: ACTIVE
+                    registrationDate: '2019-11-01'
+                    legalAddress: г. Санкт-Петербург, пр. Условный, д. 5
+                    mainActivity:
+                      code: '62.01'
+                      name: Разработка программного обеспечения
+                    groupId: null
+                    isBankClient: false
+                    dataAsOf: '2026-09-23T06:15:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+components:
+  schemas:
+    Inn:
+      type: string
+      pattern: '^[0-9]{10}$'
+      description: ИНН юридического лица, ровно 10 цифр.
+      example: '7700000001'
+    Activity:
+      type: object
+      description: Основной вид деятельности (ОКВЭД).
+      required: [code, name]
+      properties:
+        code:
+          type: string
+          pattern: '^[0-9]{2}(\.[0-9]{1,2}){0,2}$'
+          example: '64.19'
+        name:
+          type: string
+          example: Денежное посредничество прочее
+    CompanyInfo:
+      type: object
+      description: Актуальные данные о юридическом лице из актуального среза. Историю SCD2 здесь не отдаём.
+      required: [inn, ogrn, shortName, status, registrationDate, legalAddress, mainActivity, groupId, isBankClient, dataAsOf]
+      properties:
+        inn:
+          $ref: '#/components/schemas/Inn'
+        ogrn:
+          type: string
+          pattern: '^[0-9]{13}$'
+          example: '1027700000001'
+        kpp:
+          type: [string, 'null']
+          pattern: '^[0-9]{9}$'
+          description: КПП. Если не указан, будет null.
+          example: '770001001'
+        shortName:
+          type: string
+          maxLength: 255
+          example: ООО «Ромашка Демо»
+        fullName:
+          type: string
+          maxLength: 1000
+          example: Общество с ограниченной ответственностью «Ромашка Демо»
+        status:
+          type: string
+          description: Действует, ликвидируется или уже ликвидирована.
+          enum: [ACTIVE, LIQUIDATING, LIQUIDATED]
+          example: ACTIVE
+        registrationDate:
+          type: string
+          format: date
+          example: '2012-03-15'
+        legalAddress:
+          type: string
+          maxLength: 1000
+          example: г. Москва, ул. Примерная, д. 1
+        mainActivity:
+          $ref: '#/components/schemas/Activity'
+        groupId:
+          type: [string, 'null']
+          description: Идентификатор группы компаний. Если компания не в группе, будет null.
+          example: grp-000042
+        isBankClient:
+          type: boolean
+          description: Уже ли компания клиент банка (это добавляется при обогащении внутренними данными).
+          example: true
+        dataAsOf:
+          type: string
+          format: date-time
+          description: На какой момент собран актуальный срез (UTC). По нему видно, насколько свежие данные.
+          example: '2026-09-23T06:15:00Z'
+    Error:
+      type: object
+      description: Так выглядит любая ошибка во всех API платформы.
+      required: [code, message, traceId]
+      properties:
+        code:
+          type: string
+          description: Код ошибки, по нему клиент решает, что делать дальше.
+          enum: [INVALID_REQUEST, UNAUTHORIZED, COMPANY_NOT_FOUND, INTERNAL_ERROR, SERVICE_UNAVAILABLE, UPSTREAM_TIMEOUT]
+          example: COMPANY_NOT_FOUND
+        message:
+          type: string
+          description: Короткое описание ошибки для разработчика.
+          example: Компания с таким ИНН не найдена
+        traceId:
+          type: string
+          description: Совпадает с заголовком X-Request-Id в ответе. Пригодится, если надо разобраться в логах.
+          example: 3f2b8c1e-7a44-4d0e-9a55-1c2d3e4f5a6b
+        details:
+          type: array
+          description: Что именно не так с полями запроса. Есть только в ответе 400.
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+    ErrorDetail:
+      type: object
+      required: [field, problem]
+      properties:
+        field:
+          type: string
+          example: inn
+        problem:
+          type: string
+          example: должно быть ровно 10 цифр
+  parameters:
+    Inn:
+      name: inn
+      in: path
+      required: true
+      description: ИНН юридического лица, 10 цифр.
+      schema:
+        $ref: '#/components/schemas/Inn'
+      example: '7700000001'
+    XRequestId:
+      name: X-Request-Id
+      in: header
+      required: false
+      description: Идентификатор запроса (UUID). Нужен, чтобы находить запрос в логах разных сервисов. Если не передать, сервис создаст свой.
+      schema:
+        type: string
+        format: uuid
+      example: 3f2b8c1e-7a44-4d0e-9a55-1c2d3e4f5a6b
+  headers:
+    X-Request-Id:
+      description: Идентификатор запроса. Если клиент его прислал, возвращаем то же значение, иначе создаём свой.
+      required: true
+      schema:
+        type: string
+        format: uuid
+      example: 3f2b8c1e-7a44-4d0e-9a55-1c2d3e4f5a6b
+  responses:
+    BadRequest:
+      description: 'Запрос составлен неверно, например ИНН не из 10 цифр.'
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            badInn:
+              value:
+                code: INVALID_REQUEST
+                message: 'Неверный формат ИНН'
+                traceId: 3f2b8c1e-7a44-4d0e-9a55-1c2d3e4f5a6b
+                details:
+                  - field: inn
+                    problem: должно быть ровно 10 цифр
+    NotFound:
+      description: 'Компании с таким ИНН нет в актуальном срезе.'
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            unknownInn:
+              value:
+                code: COMPANY_NOT_FOUND
+                message: 'Компания с ИНН 7700000009 не найдена'
+                traceId: 3f2b8c1e-7a44-4d0e-9a55-1c2d3e4f5a6b
+    InternalError:
+      description: 'Внутренняя ошибка сервиса.'
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: 'Сервис или то, от чего он зависит (база, кэш, другой сервис, ML-модель), сейчас недоступны.'
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
