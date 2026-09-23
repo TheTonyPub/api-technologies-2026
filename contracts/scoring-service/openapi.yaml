@@ -1,0 +1,215 @@
+openapi: 3.2.1
+info:
+  title: Scoring Service
+  version: 1.0.0
+  description: |
+    Внутренний API. Считает скоринг потенциального клиента, его вызывает только API Gateway.
+    Сервис читает данные из актуального среза в PostgreSQL и обращается к ML Model
+    (см. contracts/ml-model). Результат скоринга не сохраняется.
+    Проверку доступа внутри платформы здесь не описываем, считаем что это сеть и инфраструктура.
+
+    Контракт учебный. Данные и адреса в примерах выдуманные.
+servers:
+  - url: https://scoring-service.platform.example
+    description: Выдуманный адрес для примера
+tags:
+  - name: Scoring
+    description: Скоринг потенциального клиента
+paths:
+  /v1/companies/{inn}/scoring:
+    get:
+      tags: [Scoring]
+      operationId: getCompanyScoring
+      summary: Скоринг потенциального клиента по ИНН
+      description: |
+        Возвращает оценку того, что компания станет клиентом банка. Вызывает API Gateway.
+        Данные компании берутся из актуального среза, оценку считает ML-модель.
+
+        Расчёт идёт сразу при запросе, результат нигде не сохраняется, поэтому это GET.
+        Если ИНН нет в срезе, вернётся 404. Если модель недоступна, вернётся 503, если не успела ответить, 504.
+        Весь запрос, включая вызов модели, должен укладываться в 1 секунду (пока не измеряли).
+      parameters:
+        - $ref: '#/components/parameters/Inn'
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '200':
+          description: Результат скоринга.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyScoring'
+              examples:
+                scored:
+                  value:
+                    inn: '7700000002'
+                    probability: 0.73
+                    modelVersion: lead-scoring-2026.09.1
+                    scoredAt: '2026-09-23T10:42:11Z'
+                    dataAsOf: '2026-09-23T06:15:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
+components:
+  schemas:
+    Inn:
+      type: string
+      pattern: '^[0-9]{10}$'
+      description: ИНН юридического лица, ровно 10 цифр.
+      example: '7700000001'
+    CompanyScoring:
+      type: object
+      description: Результат скоринга потенциального клиента.
+      required: [inn, probability, modelVersion, scoredAt, dataAsOf]
+      properties:
+        inn:
+          $ref: '#/components/schemas/Inn'
+        probability:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Вероятность того, что компания станет клиентом банка, от 0 до 1.
+          example: 0.73
+        modelVersion:
+          type: string
+          description: Версия модели, которая посчитала оценку.
+          example: lead-scoring-2026.09.1
+        scoredAt:
+          type: string
+          format: date-time
+          description: Когда посчитана оценка (UTC).
+          example: '2026-09-23T10:42:11Z'
+        dataAsOf:
+          type: string
+          format: date-time
+          description: На какой срез данных опирался скоринг (UTC).
+          example: '2026-09-23T06:15:00Z'
+    Error:
+      type: object
+      description: Так выглядит любая ошибка во всех API платформы.
+      required: [code, message, traceId]
+      properties:
+        code:
+          type: string
+          description: Код ошибки, по нему клиент решает, что делать дальше.
+          enum: [INVALID_REQUEST, UNAUTHORIZED, COMPANY_NOT_FOUND, INTERNAL_ERROR, SERVICE_UNAVAILABLE, UPSTREAM_TIMEOUT]
+          example: COMPANY_NOT_FOUND
+        message:
+          type: string
+          description: Короткое описание ошибки для разработчика.
+          example: Компания с таким ИНН не найдена
+        traceId:
+          type: string
+          description: Совпадает с заголовком X-Request-Id в ответе. Пригодится, если надо разобраться в логах.
+          example: 3f2b8c1e-7a44-4d0e-9a55-1c2d3e4f5a6b
+        details:
+          type: array
+          description: Что именно не так с полями запроса. Есть только в ответе 400.
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+    ErrorDetail:
+      type: object
+      required: [field, problem]
+      properties:
+        field:
+          type: string
+          example: inn
+        problem:
+          type: string
+          example: должно быть ровно 10 цифр
+  parameters:
+    Inn:
+      name: inn
+      in: path
+      required: true
+      description: ИНН юридического лица, 10 цифр.
+      schema:
+        $ref: '#/components/schemas/Inn'
+      example: '7700000001'
+    XRequestId:
+      name: X-Request-Id
+      in: header
+      required: false
+      description: Идентификатор запроса (UUID). Нужен, чтобы находить запрос в логах разных сервисов. Если не передать, сервис создаст свой.
+      schema:
+        type: string
+        format: uuid
+      example: 3f2b8c1e-7a44-4d0e-9a55-1c2d3e4f5a6b
+  headers:
+    X-Request-Id:
+      description: Идентификатор запроса. Если клиент его прислал, возвращаем то же значение, иначе создаём свой.
+      required: true
+      schema:
+        type: string
+        format: uuid
+      example: 3f2b8c1e-7a44-4d0e-9a55-1c2d3e4f5a6b
+  responses:
+    BadRequest:
+      description: 'Запрос составлен неверно, например ИНН не из 10 цифр.'
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            badInn:
+              value:
+                code: INVALID_REQUEST
+                message: 'Неверный формат ИНН'
+                traceId: 3f2b8c1e-7a44-4d0e-9a55-1c2d3e4f5a6b
+                details:
+                  - field: inn
+                    problem: должно быть ровно 10 цифр
+    NotFound:
+      description: 'Компании с таким ИНН нет в актуальном срезе.'
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            unknownInn:
+              value:
+                code: COMPANY_NOT_FOUND
+                message: 'Компания с ИНН 7700000009 не найдена'
+                traceId: 3f2b8c1e-7a44-4d0e-9a55-1c2d3e4f5a6b
+    InternalError:
+      description: 'Внутренняя ошибка сервиса.'
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: 'Сервис или то, от чего он зависит (база, кэш, другой сервис, ML-модель), сейчас недоступны.'
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    GatewayTimeout:
+      description: 'Нижестоящий сервис или ML-модель не ответили за отведённое время.'
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
