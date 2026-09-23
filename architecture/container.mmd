@@ -24,11 +24,11 @@ C4Container
         }
     }
 
-    Rel(spark, loader, "Отдаёт данные по ЮЛ", "REST")
-    Rel(loader, hist, "Пишет версии записей", "SQL")
-    Rel(enrich, hist, "Читает и обогащает", "SQL")
-    Rel(enrich, mart, "Пишет актуальный срез", "SQL")
-    Rel(mart, cache, "Читает/прогревает кэш", "Redis")
+    Rel(loader, spark, "Запрашивает данные ЮЛ", "SOAP/XML")
+    Rel(loader, db, "Пишет версии записей (SCD2)", "SQL")
+    Rel(enrich, db, "Читает историю, формирует и пишет актуальный срез", "SQL")
+    Rel(enrich, cache, "Прогревает кэш свежими данными", "Redis protocol")
+    Rel(enrich, analytics, "Передаёт исторический и актуальный срез", "ETL")
 
     Rel(crm, gateway, "Запросы к платформе", "REST/JSON")
     Rel(abs, gateway, "Запросы к платформе", "REST/JSON")
