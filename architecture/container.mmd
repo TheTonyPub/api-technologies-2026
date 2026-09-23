@@ -37,9 +37,9 @@ C4Container
     Rel(gateway, groupcomp, "Проксирует запрос", "REST/JSON")
     Rel(gateway, scoring, "Проксирует запрос", "REST/JSON")
 
-    Rel(clientinfo, mart, "Читает данные", "SQL")
-    Rel(clientinfo, cache, "Читает данные", "Redis")
-    Rel(groupcomp, mart, "Читает данные", "SQL")
+    Rel(clientinfo, cache, "Читает данные (cache-aside)", "Redis")
+    Rel(clientinfo, db, "Читает актуальный срез при промахе кэша", "SQL")
+    Rel(groupcomp, db, "Читает актуальный срез", "SQL")
     Rel(scoring, db, "Читает актуальный срез", "SQL")
     Rel(scoring, mlmodel, "Запрашивает скоринг", "REST/JSON")
 
