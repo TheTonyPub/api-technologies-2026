@@ -11,7 +11,7 @@ C4Context
     System_Ext(abs, "АБС")
     System_Ext(analytics, "Аналитический контур")
 
-    Rel(platform, spark, "Запрашивает данные ЮЛ", "REST")
+    Rel(platform, spark, "Запрашивает данные ЮЛ", "SOAP/XML")
     Rel(crm, platform, "Запрашивает данные клиента", "REST/JSON")
     Rel(abs, platform, "Запрашивает данные клиента", "REST/JSON")
     Rel(platform, analytics, "Передаёт данные", "ETL")
