@@ -4,26 +4,25 @@ C4Container
     System_Ext(spark, "СПАРК Интерфакс", "Внешний источник данных о юридических лицах")
     System_Ext(crm, "CRM", "Система управления отношениями с клиентами")
     System_Ext(abs, "АБС", "Автоматизированная банковская система")
+    System_Ext(analytics, "Аналитический контур", "DWH / BI-система банка")
 
     System_Boundary(platform, "Платформа данных по юрлицам") {
 
-        System_Boundary(dataLayer, "Слой загрузки и хранения") {
+        Container_Boundary(dataLayer, "Слой загрузки и хранения") {
             Container(loader, "Loader", "Python/ETL", "Забирает данные из СПАРК Интерфакс и пишет в историческое хранилище")
-            ContainerDb(hist, "Historical Store", "PostgreSQL (SCD2)", "Хранит полную историю изменений данных по клиентам")
-            Container(enrich, "Enrichment Service", "Python", "Обогащает данные из исторического хранилища")
-            ContainerDb(mart, "Online Data Mart", "PostgreSQL/ClickHouse", "Актуальный срез данных для быстрого чтения")
+            ContainerDb(db, "Data Store", "PostgreSQL", "Историческое хранилище SCD2 и материализованный актуальный срез, раздельные таблицы в одной БД")
+            Container(enrich, "Enrichment Service", "Python", "Обогащает данные, формирует актуальный срез и прогревает кэш")
             ContainerDb(cache, "Cache", "Redis, TTL", "Кэш редко изменяющихся данных")
         }
 
-        System_Boundary(serviceLayer, "Сервисный слой") {
+        Container_Boundary(serviceLayer, "Сервисный слой") {
             Container(gateway, "API Gateway", "REST/HTTP", "Единая точка входа для внешних потребителей")
             Container(clientinfo, "Client Info Service", "Java/Python", "Информация о клиенте по ИНН")
             Container(groupcomp, "Group Companies Service", "Java/Python", "Все клиенты группы компаний")
             Container(scoring, "Scoring Service", "Python", "Скоринг потенциального клиента")
+            Container(mlmodel, "ML Model", "Python/ML-сервис", "Модель скоринга потенциального клиента")
         }
     }
-
-    Container_Ext(mlmodel, "ML Model", "ML-сервис", "Модель скоринга потенциального клиента")
 
     Rel(spark, loader, "Отдаёт данные по ЮЛ", "REST")
     Rel(loader, hist, "Пишет версии записей", "SQL")
