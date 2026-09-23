@@ -1,0 +1,266 @@
+openapi: 3.2.1
+info:
+  title: Group Companies Service
+  version: 1.0.0
+  description: |
+    Внутренний API. Отдаёт состав группы компаний, его вызывает только API Gateway.
+    Данные сервис читает из актуального среза в PostgreSQL, кэш не использует.
+    Проверку доступа внутри платформы здесь не описываем, считаем что это сеть и инфраструктура.
+
+    Контракт учебный. Данные и адреса в примерах выдуманные.
+servers:
+  - url: https://group-companies-service.platform.example
+    description: Выдуманный адрес для примера
+tags:
+  - name: Groups
+    description: Группы компаний
+paths:
+  /v1/companies/{inn}/group:
+    get:
+      tags: [Groups]
+      operationId: getCompanyGroup
+      summary: Все компании группы по ИНН одной из них
+      description: |
+        Возвращает все компании группы, в которую входит компания с этим ИНН. Вызывает API Gateway.
+        Группу можно найти по ИНН любой её компании. Запрос только читает данные.
+
+        Если компания есть, но в группу не входит, вернётся 200 с пустым списком members.
+        Если ИНН нет в срезе, вернётся 404. С onlyBankClients=true в ответе останутся только клиенты банка.
+
+        Мы считаем, что в группе не больше 500 компаний, поэтому постраничной выдачи нет.
+        Это допущение, реальные размеры групп мы не проверяли. Ответ должен укладываться в 1 секунду
+        (пока не измеряли).
+      parameters:
+        - $ref: '#/components/parameters/Inn'
+        - $ref: '#/components/parameters/OnlyBankClients'
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '200':
+          description: Состав группы.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/X-Request-Id'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyGroup'
+              examples:
+                groupOfThree:
+                  summary: Группа из трёх компаний
+                  value:
+                    inn: '7700000001'
+                    groupId: grp-000042
+                    groupName: Группа «Ромашка Демо»
+                    members:
+                      - inn: '7700000001'
+                        shortName: ООО «Ромашка Демо»
+                        status: ACTIVE
+                        relation: PARENT
+                        isBankClient: true
+                      - inn: '7700000003'
+                        shortName: ООО «Ромашка Логистика Демо»
+                        status: ACTIVE
+                        relation: SUBSIDIARY
+                        isBankClient: true
+                      - inn: '7700000004'
+                        shortName: ООО «Ромашка Трейд Демо»
+                        status: LIQUIDATING
+                        relation: AFFILIATE
+                        isBankClient: false
+                    totalMembers: 3
+                    dataAsOf: '2026-09-23T06:15:00Z'
+                noGroup:
+                  summary: Компания есть, но в группу не входит
+                  value:
+                    inn: '7700000002'
+                    groupId: null
+                    groupName: null
+                    members: []
+                    totalMembers: 0
+                    dataAsOf: '2026-09-23T06:15:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+components:
+  schemas:
+    Inn:
+      type: string
+      pattern: '^[0-9]{10}$'
+      description: ИНН юридического лица, ровно 10 цифр.
+      example: '7700000001'
+    GroupMember:
+      type: object
+      required: [inn, shortName, status, relation, isBankClient]
+      properties:
+        inn:
+          $ref: '#/components/schemas/Inn'
+        shortName:
+          type: string
+          example: ООО «Ромашка Демо»
+        status:
+          type: string
+          enum: [ACTIVE, LIQUIDATING, LIQUIDATED]
+          example: ACTIVE
+        relation:
+          type: string
+          description: Кем компания приходится группе.
+          enum: [PARENT, SUBSIDIARY, AFFILIATE]
+          example: PARENT
+        isBankClient:
+          type: boolean
+          example: true
+    CompanyGroup:
+      type: object
+      description: Состав группы компаний, в которую входит запрошенная компания.
+      required: [inn, groupId, groupName, members, totalMembers, dataAsOf]
+      properties:
+        inn:
+          $ref: '#/components/schemas/Inn'
+        groupId:
+          type: [string, 'null']
+          description: Идентификатор группы. Если компания не в группе, будет null.
+          example: grp-000042
+        groupName:
+          type: [string, 'null']
+          example: Группа «Ромашка Демо»
+        members:
+          type: array
+          description: Компании группы, включая ту, по которой сделан запрос. Если группы нет или фильтр onlyBankClients никого не оставил, массив пустой.
+          maxItems: 500
+          items:
+            $ref: '#/components/schemas/GroupMember'
+        totalMembers:
+          type: integer
+          minimum: 0
+          maximum: 500
+          description: Сколько компаний в members.
+          example: 3
+        dataAsOf:
+          type: string
+          format: date-time
+          example: '2026-09-23T06:15:00Z'
+    Error:
+      type: object
+      description: Так выглядит любая ошибка во всех API платформы.
+      required: [code, message, traceId]
+      properties:
+        code:
+          type: string
+          description: Код ошибки, по нему клиент решает, что делать дальше.
+          enum: [INVALID_REQUEST, UNAUTHORIZED, COMPANY_NOT_FOUND, INTERNAL_ERROR, SERVICE_UNAVAILABLE, UPSTREAM_TIMEOUT]
+          example: COMPANY_NOT_FOUND
+        message:
+          type: string
+          description: Короткое описание ошибки для разработчика.
+          example: Компания с таким ИНН не найдена
+        traceId:
+          type: string
+          description: Совпадает с заголовком X-Request-Id в ответе. Пригодится, если надо разобраться в логах.
+          example: 3f2b8c1e-7a44-4d0e-9a55-1c2d3e4f5a6b
+        details:
+          type: array
+          description: Что именно не так с полями запроса. Есть только в ответе 400.
+          items:
+            $ref: '#/components/schemas/ErrorDetail'
+    ErrorDetail:
+      type: object
+      required: [field, problem]
+      properties:
+        field:
+          type: string
+          example: inn
+        problem:
+          type: string
+          example: должно быть ровно 10 цифр
+  parameters:
+    Inn:
+      name: inn
+      in: path
+      required: true
+      description: ИНН юридического лица, 10 цифр.
+      schema:
+        $ref: '#/components/schemas/Inn'
+      example: '7700000001'
+    OnlyBankClients:
+      name: onlyBankClients
+      in: query
+      required: false
+      description: Если true, вернутся только компании группы, которые уже клиенты банка. По умолчанию возвращаются все компании группы.
+      schema:
+        type: boolean
+        default: false
+      example: true
+    XRequestId:
+      name: X-Request-Id
+      in: header
+      required: false
+      description: Идентификатор запроса (UUID). Нужен, чтобы находить запрос в логах разных сервисов. Если не передать, сервис создаст свой.
+      schema:
+        type: string
+        format: uuid
+      example: 3f2b8c1e-7a44-4d0e-9a55-1c2d3e4f5a6b
+  headers:
+    X-Request-Id:
+      description: Идентификатор запроса. Если клиент его прислал, возвращаем то же значение, иначе создаём свой.
+      required: true
+      schema:
+        type: string
+        format: uuid
+      example: 3f2b8c1e-7a44-4d0e-9a55-1c2d3e4f5a6b
+  responses:
+    BadRequest:
+      description: 'Запрос составлен неверно, например ИНН не из 10 цифр.'
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            badInn:
+              value:
+                code: INVALID_REQUEST
+                message: 'Неверный формат ИНН'
+                traceId: 3f2b8c1e-7a44-4d0e-9a55-1c2d3e4f5a6b
+                details:
+                  - field: inn
+                    problem: должно быть ровно 10 цифр
+    NotFound:
+      description: 'Компании с таким ИНН нет в актуальном срезе.'
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            unknownInn:
+              value:
+                code: COMPANY_NOT_FOUND
+                message: 'Компания с ИНН 7700000009 не найдена'
+                traceId: 3f2b8c1e-7a44-4d0e-9a55-1c2d3e4f5a6b
+    InternalError:
+      description: 'Внутренняя ошибка сервиса.'
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: 'Сервис или то, от чего он зависит (база, кэш, другой сервис, ML-модель), сейчас недоступны.'
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/X-Request-Id'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
