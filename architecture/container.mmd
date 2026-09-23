@@ -1,33 +1,35 @@
 C4Container
     title Контейнерная диаграмма Антифрод-системы
 
-    Person(customer, "Клиент банка", "Инициирует транзакции")
-    Person(analysts, "Команда аналитиков", "Обучает ML-модели")
+    Person(client, "Клиент банка", "Инициирует транзакции")
+    Person(analyst_team, "Команда аналитиков", "Обучает ML-модели")
 
     System_Ext(abs, "АБС", "Банковская система")
-    System_Ext(sources, "Внешние источники", "Данные о клиентах")
+    System_Ext(ext_sources, "Внешние источники", "Данные о клиентах")
     System_Ext(datalake, "Data Lake", "S3 + Iceberg", "Исторические данные")
     System_Ext(s3, "Хранилище моделей", "S3 / MinIO", "Версии ML-моделей")
 
     System_Boundary(antifraud, "Антифрод-система") {
         Container(features, "Статистика клиента", "Python, REST/gRPC", "Приём событий и агрегаты")
         Container(ml, "ML-сервис", "Python, gRPC", "Инференс модели")
-        Container(rules, "Решение", "Python, gRPC", "Вердикт 1/0")
-        Container(etl, "Загрузчик ETL", "Python, Airflow", "История в витрину")
-        ContainerDb(redis, "Кэш", "Redis 7", "Горячие агрегаты")
+        Container(rules, "Решение (Rules)", "Python, gRPC", "Вынесение вердикта 1/0")
+        Container(etl, "Загрузчик ETL", "Python, Airflow", "Забирает историю и пишет в Data Lake")
+        ContainerDb(redis, "Кэш", "Redis 7", "Предрасчёт агрегатов и загрузка в кэш")
     }
 
-    Rel(customer, abs, "Транзакция")
-    Rel(abs, features, "Событие")
-    Rel(abs, etl, "История")
-    Rel(features, redis, "Кэш")
+    Rel(client, abs, "Инициирует транзакцию")
+    Rel(abs, features, "Отправляет событие транзакции")
+    Rel(etl, abs, "Забирает историю транзакций")
+    Rel(etl, ext_sources, "Забирает данные клиентов")
+    Rel(etl, datalake, "Записывает исторические данные")
+    Rel(etl, redis, "Загружает агрегаты в кэш")
+    Rel(features, redis, "Запрашивает агрегаты клиента")
     Rel(features, ml, "Признаки")
-    Rel(ml, s3, "Модель")
+    Rel(ml, s3, "Файл модели")
     Rel(ml, rules, "Скор")
     Rel(rules, features, "Вердикт")
     Rel(features, abs, "Ответ")
-    Rel(analysts, s3, "Модели")
-    Rel(etl, datalake, "Загрузка")
-    Rel(datalake, etl, "Чтение")
-    Rel(etl, redis, "Обновление")
-    Rel(etl, sources, "Запрос")
+    Rel(analyst_team, s3, "Выгружает модели")
+    Rel(analyst_team, datalake, "Читает историю")
+    Rel(datalake, etl, "Читает данные")
+    
