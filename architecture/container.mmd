@@ -1,35 +1,37 @@
 C4Container
-    title Контейнерная диаграмма Антифрод-системы
+    title Контейнерная диаграмма антифрод-системы
 
-    Person(client, "Клиент банка", "Инициирует транзакции")
-    Person(analyst_team, "Команда аналитиков", "Обучает ML-модели")
+    Person(customer, "Клиент банка", "Инициирует транзакции")
+    Person(analysts, "Команда аналитиков", "Обучает ML-модели")
 
     System_Ext(abs, "АБС", "Банковская система")
-    System_Ext(ext_sources, "Внешние источники", "Данные о клиентах")
+    System_Ext(s3, "Хранилище моделей", "S3 / MinIO", "Хранит модели")
     System_Ext(datalake, "Data Lake", "S3 + Iceberg", "Исторические данные")
-    System_Ext(s3, "Хранилище моделей", "S3 / MinIO", "Версии ML-моделей")
+    System_Ext(sources, "Внешние источники", "Данные о клиентах")
 
     System_Boundary(antifraud, "Антифрод-система") {
         Container(features, "Статистика клиента", "Python, REST/gRPC", "Приём событий и агрегаты")
         Container(ml, "ML-сервис", "Python, gRPC", "Инференс модели")
-        Container(rules, "Решение (Rules)", "Python, gRPC", "Вынесение вердикта 1/0")
+        Container(rules, "Решение", "Python, gRPC", "Вынесение вердикта 1/0")
         Container(etl, "Загрузчик ETL", "Python, Airflow", "Забирает историю и пишет в Data Lake")
         ContainerDb(redis, "Кэш", "Redis 7", "Предрасчёт агрегатов и загрузка в кэш")
     }
 
-    Rel(client, abs, "Инициирует транзакцию")
-    Rel(abs, features, "Отправляет событие транзакции")
-    Rel(etl, abs, "Забирает историю транзакций")
-    Rel(etl, ext_sources, "Забирает данные клиентов")
-    Rel(etl, datalake, "Записывает исторические данные")
-    Rel(etl, redis, "Загружает агрегаты в кэш")
-    Rel(features, redis, "Запрашивает агрегаты клиента")
-    Rel(features, ml, "Признаки")
-    Rel(ml, s3, "Файл модели")
-    Rel(ml, rules, "Скор")
-    Rel(rules, features, "Вердикт")
-    Rel(features, abs, "Ответ")
-    Rel(analyst_team, s3, "Выгружает модели")
-    Rel(analyst_team, datalake, "Читает историю")
-    Rel(datalake, etl, "Читает данные")
-    
+    Rel(customer, abs, "Транзакция")
+    Rel(abs, features, "Отправляет событие транзакции", "REST")
+    Rel(abs, etl, "Передаёт историю", "batch")
+
+    Rel(analysts, s3, "Загружает обученные модели", "S3 API")
+    Rel(ml, s3, "Загрузка модели", "S3 API")
+
+    Rel(features, ml, "Признаки", "gRPC")
+    Rel(ml, rules, "Скор", "gRPC")
+    Rel(rules, features, "Вердикт", "gRPC")
+    Rel(features, abs, "Ответ с вердиктом", "REST")
+
+    Rel(features, redis, "Запрашивает агрегаты клиента", "RESP")
+    Rel(etl, redis, "Загружает агрегаты в кэш", "RESP")
+
+    Rel(etl, datalake, "Запись истории", "S3 API")
+    Rel(datalake, etl, "Чтение истории", "S3 API")
+    Rel(etl, sources, "Забирает данные клиентов", "REST")
