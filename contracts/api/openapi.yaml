@@ -799,16 +799,12 @@ components:
           enum: [ready, pending]
           description: pending — прогноз для этого сервера/горизонта ещё ни разу не рассчитан
         cpuPercent:
-          type: number
-          nullable: true
+          type: [number, "null"]
         ramPercent:
-          type: number
-          nullable: true
+          type: [number, "null"]
         diskPercent:
-          type: number
-          nullable: true
+          type: [number, "null"]
         generatedAt:
-          type: string
+          type: [string, "null"]
           format: date-time
-          nullable: true
           description: Момент расчёта прогноза; null, если status=pending
