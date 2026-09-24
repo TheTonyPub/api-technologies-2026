@@ -109,6 +109,12 @@ Alert Worker формирует тело запроса под конкретн�
 - **Команда:**
   ```sh
   npx -y @redocly/cli@latest lint contracts/api/openapi.yaml contracts/metrics-collector/openapi.yaml
+  ```
+- **Результат (2026-09-24):** `Your API descriptions are valid` — 0 ошибок, 4 предупреждения:
+  - `info-license` (в обоих файлах): лицензия для учебного контракта не указывается;
+  - `no-server-example.com` (в обоих файлах): адреса серверов вымышленные намеренно, задание запрещает указывать реальные адреса внутренних систем.
+- **Исправлено по итогам проверки:** первая проверка `contracts/api/openapi.yaml` выдала 4 ошибки `struct: Property 'nullable' is not expected here` в схеме `Forecast`. Ключевое слово `nullable` из OpenAPI 3.0 в версиях 3.1+/3.2 не существует; поля переписаны как `type: [number, "null"]` и `type: [string, "null"]`, после чего пример `pending` со значениями `null` соответствует схеме.
+- `$ref`-ссылки разрешаются: валидатор ошибок разрешения ссылок не выдал.
 - **Просмотр:** Swagger Editor (editor.swagger.io, веб-версия) - оба файла открыты, операции и схемы отображаются.
 
 ## Соответствие C4-диаграмме ДЗ 1
