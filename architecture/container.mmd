@@ -8,14 +8,14 @@ C4Container
 
     System_Boundary(platform, "Платформа данных по юрлицам") {
 
-        Container_Boundary(dataLayer, "Слой загрузки и хранения") {
+        Boundary(dataLayer, "Слой загрузки и хранения") {
             Container(loader, "Loader", "Python/ETL", "Забирает данные из СПАРК Интерфакс и пишет в историческое хранилище")
             ContainerDb(db, "Data Store", "PostgreSQL", "Историческое хранилище SCD2 и материализованный актуальный срез, раздельные таблицы в одной БД")
             Container(enrich, "Enrichment Service", "Python", "Обогащает данные, формирует актуальный срез и прогревает кэш")
             ContainerDb(cache, "Cache", "Redis, TTL", "Кэш редко изменяющихся данных")
         }
 
-        Container_Boundary(serviceLayer, "Сервисный слой") {
+        Boundary(serviceLayer, "Сервисный слой") {
             Container(gateway, "API Gateway", "REST/HTTP", "Единая точка входа для внешних потребителей")
             Container(clientinfo, "Client Info Service", "Java/Python", "Информация о клиенте по ИНН")
             Container(groupcomp, "Group Companies Service", "Java/Python", "Все клиенты группы компаний")
