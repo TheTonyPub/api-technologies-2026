@@ -1,5 +1,5 @@
 C4Container
-    title Уровень 2 · Контейнеры CapacityForecast · Кандидат v2
+    title Уровень 2 · Контейнеры CapacityForecast
 
     Person(engineer, "Инженер / DevOps-инженер", "Управляет серверами и ИС, настраивает пороги, смотрит историю и прогнозы")
     System_Ext(monitoredServers, "Серверы информационных систем", "Источник метрик CPU/RAM/диска (агенты мониторинга)")
@@ -11,13 +11,17 @@ C4Container
             Container(webUi, "Web UI", "React / TypeScript SPA", "Интерфейс инженера: серверы, ИС, история нагрузки, прогнозы, пороги")
             Container(api, "API", "REST/HTTPS, Node.js", "Единая точка входа: аутентификация, CRUD серверов/ИС/порогов, чтение прогнозов и текущего состояния")
         }
-        Container_Boundary(workers, "Обработка") {
-            Container(metricsCollector, "Metrics Collector", "Go", "Принимает метрики CPU/RAM/диска от агентов раз в минуту, пишет их в Hot Store и Data Store")
+        Container_Boundary(ingest, "Приём и потоковая обработка") {
+            Container(metricsCollector, "Metrics Collector", "Go", "Принимает метрики CPU/RAM/диска от агентов раз в минуту и публикует их в Kafka")
+            ContainerQueue(kafka, "Kafka", "Apache Kafka", "Буфер потока сырых метрик")
+            Container(streamProcessor, "Stream Processor", "Apache Flink", "Считает NRT-фичи из потока и пишет историю метрик")
+        }
+        Container_Boundary(workers, "Прогнозирование и алерты") {
             Container(forecastWorker, "Forecast Worker", "Python (ML-модели)", "Строит прогнозы нагрузки на горизонты 1 день / 1 мес / 6 мес / 1 год")
             Container(alertWorker, "Alert Worker", "Go", "Сравнивает прогнозы на 1 день и 1 месяц с допустимыми порогами и инициирует уведомления")
         }
         Container_Boundary(storage, "Хранилища") {
-            ContainerDb(hotStore, "Hot Store", "Redis", "Кэш свежих (NRT) метрик для прогноза на горизонте 1 день")
+            ContainerDb(hotStore, "Hot Store", "Redis", "Готовые NRT-фичи для прогноза на горизонте 1 день")
             ContainerDb(dataStore, "Data Store", "TimescaleDB / PostgreSQL", "Единое хранилище: история метрик, серверы, ИС, пороги, прогнозы")
         }
     }
@@ -27,15 +31,18 @@ C4Container
     Rel(sitCenter, api, "Запрашивает актуальное и прогнозируемое состояние", "HTTPS / WebSocket")
 
     Rel(monitoredServers, metricsCollector, "Передаёт метрики CPU/RAM/диска", "каждую минуту, HTTP")
-    Rel(metricsCollector, hotStore, "Пишет свежие (NRT) метрики", "Redis protocol")
-    Rel(metricsCollector, dataStore, "Пишет историю метрик", "SQL")
+    Rel(metricsCollector, kafka, "Публикует сырые метрики", "Kafka protocol")
+    Rel(streamProcessor, kafka, "Читает поток сырых метрик", "Kafka protocol")
+    Rel(streamProcessor, hotStore, "Пишет NRT-фичи", "Redis protocol")
+    Rel(streamProcessor, dataStore, "Пишет историю метрик", "SQL")
 
-    Rel(api, dataStore, "Читает/пишет серверы, ИС, пороги; читает прогнозы", "SQL")
+    Rel(api, dataStore, "Читает/пишет серверы, ИС, пороги; читает историю и прогнозы", "SQL")
+    Rel(api, hotStore, "Читает текущее состояние", "Redis protocol")
 
-    Rel(forecastWorker, hotStore, "Читает NRT-метрики (для прогноза на 1 день)", "Redis protocol")
+    Rel(forecastWorker, hotStore, "Читает NRT-фичи (для прогноза на 1 день)", "Redis protocol")
     Rel(forecastWorker, dataStore, "Читает историю (для 1 мес / 6 мес / 1 год), сохраняет прогнозы", "SQL")
 
     Rel(alertWorker, dataStore, "Читает прогнозы (1 день / 1 месяц) и пороги", "SQL")
     Rel(alertWorker, notifyChannels, "Отправляет уведомление о превышении порога", "SMTP / HTTP webhook")
 
-    UpdateLayoutConfig($c4ShapeInRow="2", $c4BoundaryInRow="3")
+    UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="2")
