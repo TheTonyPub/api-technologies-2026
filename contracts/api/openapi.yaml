@@ -1,0 +1,814 @@
+openapi: 3.2.1
+info:
+  title: CapacityForecast API
+  version: "1.0.0"
+  description: >
+    Внутренний REST API системы прогнозирования требований к мощности серверов.
+    Единая точка входа для Web UI (инженер/DevOps-инженер) и для внешней системы
+    "Ситуационный центр": аутентификация, управление серверами/ИС/порогами,
+    чтение текущего состояния, истории метрик и прогнозов.
+    Синтетические данные во всех примерах вымышленные.
+servers:
+  - url: https://api.capacityforecast.example.com/v1
+    description: Продуктивное окружение (вымышленный адрес для учебного проекта)
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: auth
+    description: Аутентификация
+  - name: information-systems
+    description: Информационные системы (ИС)
+  - name: servers
+    description: Серверы и их пороги
+  - name: state
+    description: Текущее состояние и история метрик
+  - name: forecasts
+    description: Прогнозы нагрузки
+
+paths:
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Войти и получить токен доступа
+      description: >
+        Аутентификация инженера/DevOps-инженера по email и паролю. Используется
+        Web UI перед обращением к остальным операциям API. Не требует заголовка
+        Authorization.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+            example:
+              email: engineer@example.com
+              password: "correct-horse-battery-staple"
+      responses:
+        "200":
+          description: Успешная аутентификация
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+              example:
+                accessToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.example.token
+                tokenType: Bearer
+                expiresInSeconds: 3600
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          description: Неверный email или пароль
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: invalid_credentials
+                  message: Неверный email или пароль
+
+  /information-systems:
+    get:
+      operationId: listInformationSystems
+      tags: [information-systems]
+      summary: Список информационных систем (ИС)
+      responses:
+        "200":
+          description: Список ИС
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InformationSystem"
+              example:
+                - id: is-crm
+                  name: CRM
+                  description: Система учёта клиентов
+                - id: is-billing
+                  name: Биллинг
+                  description: Система расчёта платежей
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createInformationSystem
+      tags: [information-systems]
+      summary: Зарегистрировать новую ИС
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InformationSystemInput"
+            example:
+              name: Биллинг
+              description: Система расчёта платежей
+      responses:
+        "201":
+          description: ИС создана
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InformationSystem"
+              example:
+                id: is-billing
+                name: Биллинг
+                description: Система расчёта платежей
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /information-systems/{isId}:
+    parameters:
+      - $ref: "#/components/parameters/IsId"
+    get:
+      operationId: getInformationSystem
+      tags: [information-systems]
+      summary: Получить ИС по идентификатору
+      responses:
+        "200":
+          description: ИС найдена
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InformationSystem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateInformationSystem
+      tags: [information-systems]
+      summary: Изменить название/описание ИС
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InformationSystemInput"
+      responses:
+        "200":
+          description: ИС обновлена
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InformationSystem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteInformationSystem
+      tags: [information-systems]
+      summary: Удалить ИС (только если к ней не привязано ни одного сервера)
+      responses:
+        "204":
+          description: ИС удалена
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: У ИС ещё есть привязанные серверы
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: is_has_servers
+                  message: Нельзя удалить ИС, к которой привязаны серверы
+
+  /information-systems/{isId}/summary:
+    parameters:
+      - $ref: "#/components/parameters/IsId"
+    get:
+      operationId: getInformationSystemSummary
+      tags: [state]
+      summary: Агрегированное текущее и прогнозируемое состояние всех серверов ИС
+      description: >
+        Используется дашбордом ситуационного центра для отображения сводного
+        состояния конкретной ИС без обхода каждого сервера по отдельности.
+        Целевое время ответа — до 1 секунды.
+      responses:
+        "200":
+          description: Сводка получена
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InformationSystemSummary"
+              example:
+                isId: is-billing
+                serverCount: 12
+                serversOverThreshold1d: 1
+                serversOverThreshold1m: 0
+                generatedAt: "2026-09-24T10:15:00Z"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /servers:
+    get:
+      operationId: listServers
+      tags: [servers]
+      summary: Список серверов
+      parameters:
+        - name: isId
+          in: query
+          required: false
+          description: Отфильтровать серверы по ИС
+          schema:
+            type: string
+          example: is-billing
+      responses:
+        "200":
+          description: Список серверов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Server"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createServer
+      tags: [servers]
+      summary: Зарегистрировать новый сервер и привязать его к ИС
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServerInput"
+            example:
+              hostname: srv-042.internal
+              isId: is-billing
+      responses:
+        "201":
+          description: Сервер создан
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Server"
+              example:
+                id: srv-042
+                hostname: srv-042.internal
+                isId: is-billing
+                createdAt: "2026-09-24T09:00:00Z"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /servers/{serverId}:
+    parameters:
+      - $ref: "#/components/parameters/ServerId"
+    get:
+      operationId: getServer
+      tags: [servers]
+      summary: Получить сервер по идентификатору
+      responses:
+        "200":
+          description: Сервер найден
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Server"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateServer
+      tags: [servers]
+      summary: Изменить hostname или привязку сервера к ИС
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServerInput"
+      responses:
+        "200":
+          description: Сервер обновлён
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Server"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteServer
+      tags: [servers]
+      summary: Удалить сервер (метрики и прогнозы удаляются асинхронно)
+      responses:
+        "204":
+          description: Сервер удалён
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /servers/{serverId}/thresholds:
+    parameters:
+      - $ref: "#/components/parameters/ServerId"
+    get:
+      operationId: getServerThresholds
+      tags: [servers]
+      summary: Получить допустимые пороги нагрузки сервера
+      responses:
+        "200":
+          description: Пороги получены
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Thresholds"
+              example:
+                cpuPercent: 85
+                ramPercent: 90
+                diskPercent: 90
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      operationId: setServerThresholds
+      tags: [servers]
+      summary: Задать допустимые пороги нагрузки сервера
+      description: >
+        Полностью заменяет текущие пороги. Настраивает инженер/DevOps-инженер,
+        отвечающий за сервер — он лучше всех знает реальные характеристики
+        сервера и бизнес-контекст ИС.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Thresholds"
+            example:
+              cpuPercent: 85
+              ramPercent: 90
+              diskPercent: 90
+      responses:
+        "200":
+          description: Пороги обновлены
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Thresholds"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /servers/{serverId}/current-state:
+    parameters:
+      - $ref: "#/components/parameters/ServerId"
+    get:
+      operationId: getCurrentState
+      tags: [state]
+      summary: Текущая (near real-time) загрузка сервера
+      description: >
+        Читает последнюю NRT-фичу, посчитанную Stream Processor (Flink) и
+        сохранённую в Hot Store (Redis). Целевое время ответа — до 1 секунды.
+        Данные считаются свежими, если возраст не превышает 2 минуты
+        (удвоенный интервал сбора метрик); при более старых данных API
+        возвращает их с флагом stale=true, а не ошибкой.
+      responses:
+        "200":
+          description: Текущее состояние получено
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CurrentState"
+              example:
+                serverId: srv-042
+                cpuPercent: 78
+                ramPercent: 65
+                diskPercent: 41
+                measuredAt: "2026-09-24T10:14:40Z"
+                stale: false
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Сервер не найден, либо по нему ещё не поступило ни одной метрики
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: no_data_yet
+                  message: По серверу ещё не поступило ни одной метрики
+
+  /servers/{serverId}/metrics:
+    parameters:
+      - $ref: "#/components/parameters/ServerId"
+    get:
+      operationId: listServerMetrics
+      tags: [state]
+      summary: История метрик сервера за период
+      description: >
+        Отдаёт историю из Data Store (TimescaleDB/PostgreSQL). Данные за
+        последний год хранятся с исходной минутной гранулярностью, поэтому
+        для длинных периодов обязательно используйте агрегацию (resolution)
+        и постраничный обход (cursor) — без этого ответ на годовой период
+        вернул бы сотни тысяч точек за один вызов.
+      parameters:
+        - name: from
+          in: query
+          required: true
+          description: Начало периода (включительно), ISO 8601
+          schema:
+            type: string
+            format: date-time
+          example: "2026-09-01T00:00:00Z"
+        - name: to
+          in: query
+          required: true
+          description: Конец периода (не включительно), ISO 8601
+          schema:
+            type: string
+            format: date-time
+          example: "2026-09-24T00:00:00Z"
+        - name: resolution
+          in: query
+          required: false
+          description: Гранулярность агрегации точек
+          schema:
+            type: string
+            enum: [raw, hourly, daily]
+            default: hourly
+        - name: cursor
+          in: query
+          required: false
+          description: Курсор постраничного обхода из предыдущего ответа
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: Максимум точек в одном ответе
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 500
+      responses:
+        "200":
+          description: Страница истории метрик
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetricsPage"
+              example:
+                serverId: srv-042
+                resolution: hourly
+                points:
+                  - timestamp: "2026-09-24T08:00:00Z"
+                    cpuPercent: 55
+                    ramPercent: 60
+                    diskPercent: 40
+                  - timestamp: "2026-09-24T09:00:00Z"
+                    cpuPercent: 61
+                    ramPercent: 62
+                    diskPercent: 40
+                nextCursor: "eyJvZmZzZXQiOjEwMDB9"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /servers/{serverId}/forecasts:
+    parameters:
+      - $ref: "#/components/parameters/ServerId"
+    get:
+      operationId: getServerForecast
+      tags: [forecasts]
+      summary: Прогноз нагрузки сервера на заданный горизонт
+      description: >
+        Прогноз на горизонте 1 день строится Forecast Worker'ом по NRT-фичам
+        из Hot Store и пересчитывается вместе с их обновлением (минутный
+        цикл). Прогнозы на 1 месяц/6 месяцев/1 год строятся по истории из
+        Data Store более редким батчем (не чаще раза в сутки). Если прогноз
+        для сервера ещё не был построен ни разу, API возвращает 200 со
+        status=pending вместо ошибки, чтобы клиент мог корректно отобразить
+        состояние ожидания. Целевое время ответа — до 1 секунды.
+      parameters:
+        - name: horizon
+          in: query
+          required: true
+          description: Горизонт прогноза
+          schema:
+            type: string
+            enum: ["1d", "1m", "6m", "1y"]
+          example: "1d"
+      responses:
+        "200":
+          description: Прогноз получен (готов либо ещё в ожидании расчёта)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Forecast"
+              examples:
+                ready:
+                  summary: Прогноз готов
+                  value:
+                    serverId: srv-042
+                    horizon: "1d"
+                    status: ready
+                    cpuPercent: 82
+                    ramPercent: 70
+                    diskPercent: 42
+                    generatedAt: "2026-09-24T10:12:00Z"
+                pending:
+                  summary: Прогноз ещё не рассчитан
+                  value:
+                    serverId: srv-105
+                    horizon: "6m"
+                    status: pending
+                    cpuPercent: null
+                    ramPercent: null
+                    diskPercent: null
+                    generatedAt: null
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    ServerId:
+      name: serverId
+      in: path
+      required: true
+      description: Идентификатор сервера
+      schema:
+        type: string
+      example: srv-042
+    IsId:
+      name: isId
+      in: path
+      required: true
+      description: Идентификатор информационной системы
+      schema:
+        type: string
+      example: is-billing
+
+  responses:
+    BadRequest:
+      description: Некорректный запрос (не пройдена валидация)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error:
+              code: validation_error
+              message: "Поле 'cpuPercent' должно быть числом от 0 до 100"
+    Unauthorized:
+      description: Токен отсутствует или недействителен
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error:
+              code: unauthorized
+              message: Токен отсутствует или недействителен
+    NotFound:
+      description: Объект не найден
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error:
+              code: not_found
+              message: Объект не найден
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: Машиночитаемый код ошибки
+            message:
+              type: string
+              description: Человекочитаемое описание ошибки
+            details:
+              type: object
+              description: Необязательные дополнительные детали (например, список невалидных полей)
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 8
+
+    LoginResponse:
+      type: object
+      required: [accessToken, tokenType, expiresInSeconds]
+      properties:
+        accessToken:
+          type: string
+        tokenType:
+          type: string
+          enum: [Bearer]
+        expiresInSeconds:
+          type: integer
+
+    InformationSystemInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 1000
+
+    InformationSystem:
+      allOf:
+        - type: object
+          required: [id]
+          properties:
+            id:
+              type: string
+        - $ref: "#/components/schemas/InformationSystemInput"
+
+    InformationSystemSummary:
+      type: object
+      required: [isId, serverCount, serversOverThreshold1d, serversOverThreshold1m, generatedAt]
+      properties:
+        isId:
+          type: string
+        serverCount:
+          type: integer
+        serversOverThreshold1d:
+          type: integer
+          description: Число серверов, у которых прогноз на 1 день превышает порог
+        serversOverThreshold1m:
+          type: integer
+          description: Число серверов, у которых прогноз на 1 месяц превышает порог
+        generatedAt:
+          type: string
+          format: date-time
+
+    ServerInput:
+      type: object
+      required: [hostname, isId]
+      properties:
+        hostname:
+          type: string
+          minLength: 1
+          maxLength: 255
+        isId:
+          type: string
+          description: Идентификатор ИС, которой принадлежит сервер
+
+    Server:
+      allOf:
+        - type: object
+          required: [id, createdAt]
+          properties:
+            id:
+              type: string
+            createdAt:
+              type: string
+              format: date-time
+        - $ref: "#/components/schemas/ServerInput"
+
+    Thresholds:
+      type: object
+      required: [cpuPercent, ramPercent, diskPercent]
+      properties:
+        cpuPercent:
+          type: number
+          minimum: 1
+          maximum: 100
+        ramPercent:
+          type: number
+          minimum: 1
+          maximum: 100
+        diskPercent:
+          type: number
+          minimum: 1
+          maximum: 100
+
+    CurrentState:
+      type: object
+      required: [serverId, cpuPercent, ramPercent, diskPercent, measuredAt, stale]
+      properties:
+        serverId:
+          type: string
+        cpuPercent:
+          type: number
+        ramPercent:
+          type: number
+        diskPercent:
+          type: number
+        measuredAt:
+          type: string
+          format: date-time
+        stale:
+          type: boolean
+          description: true, если данные старше 2 минут (двух интервалов сбора)
+
+    MetricPoint:
+      type: object
+      required: [timestamp, cpuPercent, ramPercent, diskPercent]
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        cpuPercent:
+          type: number
+        ramPercent:
+          type: number
+        diskPercent:
+          type: number
+
+    MetricsPage:
+      type: object
+      required: [serverId, resolution, points]
+      properties:
+        serverId:
+          type: string
+        resolution:
+          type: string
+          enum: [raw, hourly, daily]
+        points:
+          type: array
+          items:
+            $ref: "#/components/schemas/MetricPoint"
+        nextCursor:
+          type: string
+          description: Передайте в следующем запросе, чтобы получить следующую страницу; отсутствует на последней странице
+
+    Forecast:
+      type: object
+      required: [serverId, horizon, status, cpuPercent, ramPercent, diskPercent, generatedAt]
+      properties:
+        serverId:
+          type: string
+        horizon:
+          type: string
+          enum: ["1d", "1m", "6m", "1y"]
+        status:
+          type: string
+          enum: [ready, pending]
+          description: pending — прогноз для этого сервера/горизонта ещё ни разу не рассчитан
+        cpuPercent:
+          type: number
+          nullable: true
+        ramPercent:
+          type: number
+          nullable: true
+        diskPercent:
+          type: number
+          nullable: true
+        generatedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Момент расчёта прогноза; null, если status=pending
