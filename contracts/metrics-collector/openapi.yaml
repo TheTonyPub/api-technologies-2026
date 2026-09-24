@@ -1,0 +1,135 @@
+openapi: 3.2.1
+info:
+  title: CapacityForecast Metrics Ingest API
+  version: "1.0.0"
+  description: >
+    REST API приёма сырых метрик от агентов мониторинга, установленных на
+    серверах информационных систем. Единственная задача сервиса —
+    быстро принять метрику и опубликовать её в Kafka; никакой обработки
+    (агрегации, вычисления фичей) здесь не выполняется. Синтетические
+    данные во всех примерах вымышленные.
+servers:
+  - url: https://ingest.capacityforecast.example.com
+    description: Продуктивное окружение (вымышленный адрес для учебного проекта)
+
+security:
+  - agentApiKey: []
+
+tags:
+  - name: metrics
+    description: Приём метрик
+
+paths:
+  /v1/metrics:
+    post:
+      operationId: ingestMetric
+      tags: [metrics]
+      summary: Принять один сырой замер метрик сервера
+      description: >
+        Агент мониторинга вызывает эту операцию раз в минуту для каждого
+        сервера. Ответ 202 означает, что метрика принята и поставлена в
+        очередь (Kafka) — она ещё не обязательно сохранена в Data Store или
+        учтена в Hot Store на момент ответа, это происходит асинхронно через
+        Stream Processor. Запись не должна незаметно менять что-либо, кроме
+        появления новой метрики в потоке — операция создаёт факт, а не
+        изменяет существующие бизнес-данные.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MetricSample"
+            example:
+              serverId: srv-042
+              timestamp: "2026-09-24T10:14:00Z"
+              cpuPercent: 78.4
+              ramPercent: 65.1
+              diskPercent: 41.0
+      responses:
+        "202":
+          description: Метрика принята и поставлена в очередь на обработку
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IngestAck"
+              example:
+                accepted: true
+                receivedAt: "2026-09-24T10:14:00.183Z"
+        "400":
+          description: Payload не прошёл валидацию (например, значение вне диапазона 0-100 или неверный формат времени)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: validation_error
+                  message: "Поле 'cpuPercent' должно быть числом от 0 до 100"
+        "401":
+          description: Отсутствует или недействителен ключ агента (заголовок X-Agent-Api-Key)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error:
+                  code: unauthorized
+                  message: Недействительный ключ агента
+
+components:
+  securitySchemes:
+    agentApiKey:
+      type: apiKey
+      in: header
+      name: X-Agent-Api-Key
+      description: Статический ключ, выданный агенту при регистрации сервера в основном API
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+
+    MetricSample:
+      type: object
+      required: [serverId, timestamp, cpuPercent, ramPercent, diskPercent]
+      properties:
+        serverId:
+          type: string
+          description: Идентификатор сервера, зарегистрированного в основном API
+        timestamp:
+          type: string
+          format: date-time
+          description: Момент снятия показателей на сервере (не момент отправки)
+        cpuPercent:
+          type: number
+          minimum: 0
+          maximum: 100
+        ramPercent:
+          type: number
+          minimum: 0
+          maximum: 100
+        diskPercent:
+          type: number
+          minimum: 0
+          maximum: 100
+
+    IngestAck:
+      type: object
+      required: [accepted, receivedAt]
+      properties:
+        accepted:
+          type: boolean
+        receivedAt:
+          type: string
+          format: date-time
