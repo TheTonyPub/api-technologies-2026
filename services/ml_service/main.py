@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Union
+from typing import Dict, List, Optional, Union
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
@@ -21,6 +21,18 @@ class ModelInfo(BaseModel):
     description: str
 
 
+class ValidationIssue(BaseModel):
+    loc: List[Union[str, int]]
+    msg: str
+    type: str
+    input: Optional[object] = None
+    ctx: Optional[Dict[str, object]] = None
+
+
+class ErrorResponse(BaseModel):
+    detail: Union[str, List[ValidationIssue]]
+
+
 MODELS = [
     ModelInfo(id="linear-score", description="Returns numeric score from all features."),
     ModelInfo(id="risk-label", description="Returns low, medium, or high from rules."),
@@ -32,7 +44,13 @@ async def list_models() -> list[ModelInfo]:
     return MODELS
 
 
-@app.post("/v1/predict")
+@app.post(
+    "/v1/predict",
+    responses={
+        404: {"model": ErrorResponse, "description": "Model not found"},
+        422: {"model": ErrorResponse, "description": "Request validation failed"},
+    },
+)
 async def predict(payload: PredictRequest) -> dict[str, Union[str, float]]:
     if payload.model == "linear-score":
         score = round(

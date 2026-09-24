@@ -8,12 +8,13 @@ import threading
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated, Dict, List, Optional, Union
 from uuid import uuid4
 
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request, status
 from fastapi.responses import FileResponse, PlainTextResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import BaseModel
 from starlette.background import BackgroundTask
 
 
@@ -33,6 +34,18 @@ runs: dict[str, Run] = {}
 runs_lock = threading.Lock()
 Credentials = Annotated[Optional[HTTPAuthorizationCredentials], Depends(security)]
 app = FastAPI(title="CSV Processor", version="1.0.0")
+
+
+class ValidationIssue(BaseModel):
+    loc: List[Union[str, int]]
+    msg: str
+    type: str
+    input: Optional[object] = None
+    ctx: Optional[Dict[str, object]] = None
+
+
+class ErrorResponse(BaseModel):
+    detail: Union[str, List[ValidationIssue]]
 
 
 def require_token(credentials: Optional[HTTPAuthorizationCredentials]) -> None:
@@ -103,7 +116,14 @@ async def get_example() -> str:
     return "feature1,feature2,feature3\n1,2.5,hello\n10,0.75,world\n"
 
 
-@app.post("/v1/process", status_code=status.HTTP_202_ACCEPTED)
+@app.post(
+    "/v1/process",
+    status_code=status.HTTP_202_ACCEPTED,
+    responses={
+        401: {"model": ErrorResponse, "description": "Bearer token is missing or invalid"},
+        422: {"model": ErrorResponse, "description": "CSV request is invalid"},
+    },
+)
 async def process_csv(
     request: Request,
     background_tasks: BackgroundTasks,
@@ -121,12 +141,21 @@ async def process_csv(
     return {"run_id": run_id}
 
 
-@app.get("/v1/data/{run_id}")
+@app.get(
+    "/v1/data/{run_id}",
+    responses={
+        401: {"model": ErrorResponse, "description": "Bearer token is missing or invalid"},
+        404: {"model": ErrorResponse, "description": "Processed data is not ready"},
+        422: {"model": ErrorResponse, "description": "Request validation failed"},
+    },
+)
 async def get_processed_data(run_id: str, credentials: Credentials) -> FileResponse:
     require_token(credentials)
     with runs_lock:
         run = runs.get(run_id)
-        if run is None or run.state != "ready" or not run.path.exists():
+        if run is None or not run.path.exists():
+            raise HTTPException(404, "Run not found")
+        if run.state != "ready" :
             raise HTTPException(404, "Processed data is not ready")
         run.state = "delivering"
 

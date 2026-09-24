@@ -5,7 +5,7 @@ import sqlite3
 from contextlib import contextmanager
 from enum import Enum
 from pathlib import Path
-from typing import Iterator, Optional
+from typing import Dict, Iterator, List, Optional, Union
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field, model_validator
@@ -35,10 +35,23 @@ class UserUpdate(BaseModel):
 class UserCreated(BaseModel):
     user_id: int
 
+class UserDeleted(UserCreated): ...
 
 class UserResponse(UserCreated):
     age: int
     sex: Sex
+
+
+class ValidationIssue(BaseModel):
+    loc: List[Union[str, int]]
+    msg: str
+    type: str
+    input: Optional[object] = None
+    ctx: Optional[Dict[str, object]] = None
+
+
+class ErrorResponse(BaseModel):
+    detail: Union[str, List[ValidationIssue]]
 
 
 DB_PATH = Path(os.environ.get("USER_DB_PATH", "data/users.db"))
@@ -77,7 +90,14 @@ async def startup() -> None:
     initialize_database()
 
 
-@app.post("/v1/user", status_code=201, response_model=UserCreated)
+@app.post(
+    "/v1/user",
+    status_code=201,
+    response_model=UserCreated,
+    responses={
+        422: {"model": ErrorResponse, "description": "Request validation failed"},
+    },
+)
 async def create_user(payload: UserCreate) -> UserCreated:
     with database() as connection:
         cursor = connection.execute(
@@ -87,7 +107,15 @@ async def create_user(payload: UserCreate) -> UserCreated:
     return UserCreated(user_id=cursor.lastrowid)
 
 
-@app.get("/v1/user/{user_id}", status_code=200, response_model=UserResponse)
+@app.get(
+    "/v1/user/{user_id}",
+    status_code=200,
+    response_model=UserResponse,
+    responses={
+        404: {"model": ErrorResponse, "description": "User not found"},
+        422: {"model": ErrorResponse, "description": "Request validation failed"},
+    },
+)
 async def get_user_data(user_id: int) -> UserResponse:
     with database() as connection:
         row = connection.execute(
@@ -97,7 +125,15 @@ async def get_user_data(user_id: int) -> UserResponse:
             raise HTTPException(status_code=404, detail="User not found")
         return UserResponse(user_id=row["user_id"], age=row["age"], sex=row["sex"])
 
-@app.put("/v1/user/{user_id}", status_code=201, response_model=UserResponse)
+@app.put(
+    "/v1/user/{user_id}",
+    status_code=201,
+    response_model=UserResponse,
+    responses={
+        404: {"model": ErrorResponse, "description": "User not found"},
+        422: {"model": ErrorResponse, "description": "Request validation failed"},
+    },
+)
 async def update_user(user_id: int, payload: UserUpdate) -> UserResponse:
     updates: list[str] = []
     values: list[int | str] = []
@@ -121,3 +157,27 @@ async def update_user(user_id: int, payload: UserUpdate) -> UserResponse:
         ).fetchone()
 
     return UserResponse(user_id=row["user_id"], age=row["age"], sex=row["sex"])
+
+@app.delete(
+    "/v1/user/{user_id}",
+    status_code=204,
+    response_model=None,
+    responses={
+        404: {"model": ErrorResponse, "description": "User not found"},
+        422: {"model": ErrorResponse, "description": "Request validation failed"},
+        500: {"model": ErrorResponse, "description": "User deletion failed"},
+    },
+)
+async def delete_user(user_id: int) -> None:
+    with database() as connection:
+        row = connection.execute(
+            "SELECT user_id FROM users WHERE user_id = ?", (user_id,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="User not found")
+        try:
+            connection.execute(
+                    "DELETE FROM users WHERE user_id = ?", (user_id,)
+            )
+        except:
+            raise HTTPException(status_code=500, detail="Something went wrong cudring user deletion")
