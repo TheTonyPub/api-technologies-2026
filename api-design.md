@@ -2,7 +2,7 @@
 
 ## 1. Состав команды и кейс
 * **Название кейса:** Система противодействия мошенничеству (Антифрод)
-* **Ссылка на архитектуру ДЗ 1:** https://github.com/azizanizomdzonova/homework-1-edtech
+* **Ссылка на архитектуру ДЗ 1:** https://github.com/azizanizomdzonova/api-technologies-2026/tree/homework/01-team-architecture
 * **Состав команды и роли:**
   * **Низомджонова Азизахон [azizanizomdzonova]** — Тимлид / Архитектор (сборка, документация, финальная проверка).
   * **Плуталова Елена [plutalovaelena]** — Контрактник 2 (сервис Б).
