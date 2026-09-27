@@ -2,6 +2,7 @@
 # after the application stack has joined the same external Docker network.
 # The homepage container serves this repository's index.html and joins the
 # same Caddy network in server mode (COMPOSE_PROFILES=server).
+# The seminar04-* names below are explicit aliases on the shared Caddy network.
 seminar04.dataprosvet.ru {
 	# Optional: remove the comment markers and replace the placeholder with a
 	# hash from `caddy hash-password`. Never put a plain password in this file.
@@ -13,24 +14,24 @@ seminar04.dataprosvet.ru {
 	# from its TLS-terminating listener to the backend (h2c).
 	# grpcurl also calls server reflection to discover the protobuf schema.
 	@grpc path /seminar04.v1.TransactionInference/* /grpc.reflection.v1.ServerReflection/* /grpc.reflection.v1alpha.ServerReflection/*
-	reverse_proxy @grpc h2c://grpc-api:8012
+	reverse_proxy @grpc h2c://seminar04-grpc-api:8012
 
 	# handle_path strips the public prefix before forwarding. FastAPI receives
 	# root_path=/rest, /events or /stream from HOSTING_TYPE=server.
 	handle_path /rest/* {
-		reverse_proxy rest-api:8011
+		reverse_proxy seminar04-rest-api:8011
 	}
 
 	handle_path /stream/* {
-		reverse_proxy websocket-api:8013
+		reverse_proxy seminar04-websocket-api:8013
 	}
 
 	handle_path /events/* {
-		reverse_proxy event-api:8014
+		reverse_proxy seminar04-event-api:8014
 	}
 
 	# Fallback for https://seminar04.dataprosvet.ru/ after the API paths above.
 	handle {
-		reverse_proxy homepage:80
+		reverse_proxy seminar04-homepage:80
 	}
 }

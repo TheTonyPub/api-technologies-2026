@@ -113,7 +113,7 @@
    cp .env.example .env
    ```
 
-   Оставьте `HOSTING_TYPE=local` и пустое `COMPOSE_PROFILES` для работы на своём компьютере; значение сети `seminar04-edge` в шаблоне используется только локально. Для серверного режима в `.env` задайте `HOSTING_TYPE=server`, `COMPOSE_PROFILES=server`, имя уже созданной Docker-сети Caddy в `CADDY_NETWORK` и `CADDY_NETWORK_EXTERNAL=true`. Профиль `server` добавляет контейнер `homepage` с nginx: он отдаёт корневой [index.html](index.html), смонтированный только для чтения. В [примере Caddyfile](docs/Caddyfile.example) корневой путь проксируется на `homepage:80`. Режим `server` предназначен для оператора сервера; он не устанавливает Caddy и не публикует DNS. Не добавляйте секреты в Git.
+   Оставьте `HOSTING_TYPE=local` и пустое `COMPOSE_PROFILES` для работы на своём компьютере; значение сети `seminar04-edge` в шаблоне используется только локально. Для серверного режима в `.env` задайте `HOSTING_TYPE=server`, `COMPOSE_PROFILES=server`, имя уже созданной Docker-сети Caddy в `CADDY_NETWORK` и `CADDY_NETWORK_EXTERNAL=true`. Профиль `server` добавляет контейнер `homepage` с nginx: он отдаёт корневой [index.html](index.html), смонтированный только для чтения. На общей сети у публичных сервисов есть постоянные псевдонимы `seminar04-rest-api`, `seminar04-grpc-api`, `seminar04-websocket-api`, `seminar04-event-api` и `seminar04-homepage`; [пример Caddyfile](docs/Caddyfile.example) использует их, чтобы не зависеть от совпадения коротких имён сервисов в других сетях Caddy. Режим `server` предназначен для оператора сервера; он не устанавливает Caddy и не публикует DNS. Не добавляйте секреты в Git.
 
 4. Проверьте итоговую конфигурацию, соберите образы и поднимите контейнеры:
 

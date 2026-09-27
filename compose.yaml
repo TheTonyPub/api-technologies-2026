@@ -6,7 +6,10 @@ services:
     image: seminar04-rest:local
     environment: { HOSTING_TYPE: "${HOSTING_TYPE:-local}" }
     ports: ["127.0.0.1:8011:8011"]
-    networks: [app, edge]
+    networks:
+      app:
+      edge:
+        aliases: [seminar04-rest-api]
     restart: unless-stopped
 
   grpc-api:
@@ -15,7 +18,10 @@ services:
       dockerfile: services/grpc/Dockerfile
     image: seminar04-grpc:local
     ports: ["127.0.0.1:8012:8012"]
-    networks: [app, edge]
+    networks:
+      app:
+      edge:
+        aliases: [seminar04-grpc-api]
     restart: unless-stopped
 
   websocket-api:
@@ -23,7 +29,10 @@ services:
     image: seminar04-websocket:local
     environment: { HOSTING_TYPE: "${HOSTING_TYPE:-local}" }
     ports: ["127.0.0.1:8013:8013"]
-    networks: [app, edge]
+    networks:
+      app:
+      edge:
+        aliases: [seminar04-websocket-api]
     restart: unless-stopped
 
   event-api:
@@ -33,7 +42,10 @@ services:
       HOSTING_TYPE: "${HOSTING_TYPE:-local}"
       NATS_URL: nats://nats:4222
     ports: ["127.0.0.1:8014:8014"]
-    networks: [app, edge]
+    networks:
+      app:
+      edge:
+        aliases: [seminar04-event-api]
     depends_on: [nats]
     restart: unless-stopped
 
@@ -49,7 +61,9 @@ services:
     image: dockerhub.timeweb.cloud/nginx:latest
     profiles: [server]
     restart: unless-stopped
-    networks: [edge]
+    networks:
+      edge:
+        aliases: [seminar04-homepage]
     security_opt: ["no-new-privileges:true"]
     volumes:
       - ./index.html:/usr/share/nginx/html/index.html:ro
