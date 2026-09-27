@@ -47,6 +47,7 @@
 printf 'Basic Auth password: '; IFS= read -rs BASIC_PASS; printf '\n'
 BASIC_HEADER="Authorization: Basic $(printf '%s' "$BASIC_USER:$BASIC_PASS" | base64 | tr -d '\r\n')"
 unset BASIC_PASS</code></pre>
+      <p class="note">В macOS/Linux/WSL запишите терминальный сеанс командой <code>script -q seminar04.log</code>, завершите его командой <code>exit</code>. Не включайте в журнал токены, пароли, Basic Auth credentials или содержимое <code>.env</code>; удалите их также из подробного вывода перед сдачей.</p>
       <p>Не выводите и не передавайте <code>$BASIC_HEADER</code>. Не включайте <code>set -x</code> и не используйте <code>curl -v</code> или <code>grpcurl -v</code> при записи. Если Basic Auth выключена, уберите <code>-H "$BASIC_HEADER"</code> из серверных команд. Локальные вызовы не требуют заголовка.</p>
       <table>
         <thead><tr><th scope="col">Сервис и операция</th><th scope="col">Серверный адрес</th><th scope="col">Локальный адрес</th></tr></thead>
@@ -219,7 +220,6 @@ nats --server nats://127.0.0.1:4222 stream view INFERENCE --subject 'inference.r
         <li>Для задания event-driven сохраните <code>job_id</code>, время ответа 202, результат опроса GET и вывод NATS CLI с совпадающими request/result событиями.</li>
         <li>Заполненную таблицу выбора стилей и наблюдения о времени ответа и корреляции.</li>
       </ol>
-      <p class="note">В macOS/Linux/WSL запишите терминальный сеанс командой <code>script -q seminar04.log</code>, завершите его командой <code>exit</code>. Не включайте в журнал токены, пароли, Basic Auth credentials или содержимое <code>.env</code>; удалите их также из подробного вывода перед сдачей.</p>
     </section>
   </main>
 </body>
