@@ -1,7 +1,7 @@
 # Manual example for the existing Caddy server. Add the block to its Caddyfile
 # after the application stack has joined the same external Docker network.
-# Copy or mount this repository's index.html into the Caddy container at the
-# directory used below before expecting the site root to serve the page.
+# The homepage container serves this repository's index.html and joins the
+# same Caddy network in server mode (COMPOSE_PROFILES=server).
 seminar04.dataprosvet.ru {
 	# Optional: remove the comment markers and replace the placeholder with a
 	# hash from `caddy hash-password`. Never put a plain password in this file.
@@ -31,7 +31,6 @@ seminar04.dataprosvet.ru {
 
 	# Fallback for https://seminar04.dataprosvet.ru/ after the API paths above.
 	handle {
-		root * /var/www/seminar04
-		file_server
+		reverse_proxy homepage:80
 	}
 }

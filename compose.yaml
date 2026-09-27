@@ -45,6 +45,15 @@ services:
     depends_on: [nats]
     restart: unless-stopped
 
+  homepage:
+    image: dockerhub.timeweb.cloud/nginx:latest
+    profiles: [server]
+    restart: unless-stopped
+    networks: [edge]
+    security_opt: ["no-new-privileges:true"]
+    volumes:
+      - ./index.html:/usr/share/nginx/html/index.html:ro
+
   nats:
     image: nats:2.12-alpine
     command: ["-js", "--store_dir", "/data"]

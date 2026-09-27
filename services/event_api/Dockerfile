@@ -1,4 +1,4 @@
-FROM python:3.13-alpine
+FROM dockerhub.timeweb.cloud/python:3.13-alpine
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 WORKDIR /app
 COPY services/event_api/requirements.txt ./requirements.txt
