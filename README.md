@@ -145,6 +145,18 @@
 
    Контрольная сборка на ARM64 (27 сентября 2026 года): REST — 63,6 МБ, gRPC — 66,3 МБ, WebSocket — 65,0 МБ, event API — 64,4 МБ, worker — 49,9 МБ, NATS — 25,7 МБ. Размер может отличаться на x86-64 и при обновлении базового образа; сравнивайте его с выводом своей сборки.
 
+### Как изучить gRPC-контракт
+
+В [transaction.proto](proto/transaction.proto) объявлены четыре типа вызовов: unary, server streaming, client streaming и bidirectional streaming. В репозитории также лежат сгенерированные [transaction_pb2.py](services/grpc/transaction_pb2.py) с protobuf-сообщениями и [transaction_pb2_grpc.py](services/grpc/transaction_pb2_grpc.py) с клиентским stub и серверной регистрацией. Сравните объявления `rpc` в схеме с методами и дескрипторами в этих двух файлах. Команды для вызова каждого метода через `grpcurl` приведены в [задании](seminar04.md#2-grpc-четыре-типа-вызовов).
+
+Файлы сгенерированы `grpcio-tools==1.71.0` (protoc 5.29.0):
+
+```bash
+python -m grpc_tools.protoc -Iproto --python_out=services/grpc --grpc_python_out=services/grpc proto/transaction.proto
+```
+
+Генератор нужен только для изменения контракта: готовые модули уже включены в репозиторий и образ сервиса.
+
 ### Частые проблемы
 
 - **Cannot connect to the Docker daemon / Docker Desktop is starting:** откройте Docker Desktop (macOS/Windows) или выполните `sudo systemctl start docker` (Ubuntu), затем повторите `docker version`.

@@ -1,6 +1,6 @@
 # Практическая работа 4. Выбор стиля взаимодействия с API
 
-В этой работе вы взаимодействуете с четырьмя сервисами, имитирующими ML-инференс: REST сразу возвращает предсказание, gRPC принимает типизированный пакет транзакций, WebSocket обрабатывает поток измерений в одном соединении, а event-driven API принимает задание для отдельного обработчика. Сравните, что отправляет клиент, когда получает ответ и как связываются запрос и результат.
+В этой работе вы взаимодействуете с четырьмя сервисами, имитирующими ML-инференс: REST сразу возвращает предсказание, gRPC демонстрирует четыре типа вызовов для транзакций, WebSocket обрабатывает поток измерений в одном соединении, а event-driven API принимает задание для отдельного обработчика. Сравните, что отправляет клиент, когда получает ответ и как связываются запрос и результат.
 
 Сервисы используют простые детерминированные демонстрационные правила, а не обученные модели. **Основной вариант работы — серверный стенд** `seminar04.dataprosvet.ru`. В репозитории также сохранён полный локальный вариант с Docker Compose.
 
@@ -25,7 +25,10 @@
 | Events: job status/result | `GET https://seminar04.dataprosvet.ru/events/v1/jobs/{job_id}` | `GET http://127.0.0.1:8014/v1/jobs/{job_id}` |
 | Events docs | [GET https://seminar04.dataprosvet.ru/events/docs](https://seminar04.dataprosvet.ru/events/docs) | [GET http://127.0.0.1:8014/docs](http://127.0.0.1:8014/docs) |
 | gRPC reflection | `seminar04.dataprosvet.ru:443` (TLS) | `127.0.0.1:8012` (plaintext) |
-| gRPC inference | `seminar04.v1.TransactionInference/PredictBatch` | `seminar04.v1.TransactionInference/PredictBatch` |
+| gRPC unary | `seminar04.v1.TransactionInference/PredictBatch` | тот же метод |
+| gRPC server streaming | `seminar04.v1.TransactionInference/PredictBatchStream` | тот же метод |
+| gRPC client streaming | `seminar04.v1.TransactionInference/AggregateTransactions` | тот же метод |
+| gRPC bidirectional streaming | `seminar04.v1.TransactionInference/PredictLive` | тот же метод |
 | NATS JetStream | Не открыт наружу | `nats://127.0.0.1:4222` |
 
 В примерах серверных запросов заголовок авторизации передаётся переменной `$BASIC_HEADER`. Выполните подготовку **до начала записи терминала**, чтобы секрет не попал в журнал. Введите пароль скрыто; не включайте `set -x` и не запускайте `curl -v` или `grpcurl -v` при записи.
@@ -89,11 +92,13 @@ curl -i -X POST http://127.0.0.1:8011/v1/predict \
 
 Запишите код и тело ошибки. Изучите [серверную документацию REST](https://seminar04.dataprosvet.ru/rest/docs) или локально откройте [http://127.0.0.1:8011/docs](http://127.0.0.1:8011/docs).
 
-## 2. gRPC: типизированный пакет транзакций
+## 2. gRPC: четыре типа вызовов
 
-gRPC передаёт структурированное protobuf-сообщение по HTTP/2. Reflection позволяет `grpcurl` обнаружить сервис и вызвать его без локального proto-файла.
+gRPC передаёт структурированные protobuf-сообщения по HTTP/2. Изучите [исходную схему](https://github.com/TheTonyPub/api-technologies-2026/blob/seminar/04-api-interaction-styles/proto/transaction.proto): ключевое слово `stream` у запроса или ответа определяет тип вызова. Reflection позволяет `grpcurl` обнаружить все методы без локального proto-файла. Ниже вы вызовете unary, server streaming, client streaming и bidirectional streaming; их различия объясняют [официальная документация gRPC](https://grpc.io/docs/what-is-grpc/core-concepts/) и [статья из задания](https://alirezafarokhi.medium.com/what-is-grpc-and-different-types-of-grpc-services-9b86a7267064). Во всех вариантах используется одна детерминированная оценка риска транзакции.
 
-**Сервер — reflection и успешный пакет:**
+Сравните схему со сгенерированными модулями [transaction_pb2.py](https://github.com/TheTonyPub/api-technologies-2026/blob/seminar/04-api-interaction-styles/services/grpc/transaction_pb2.py) (описания protobuf-сообщений) и [transaction_pb2_grpc.py](https://github.com/TheTonyPub/api-technologies-2026/blob/seminar/04-api-interaction-styles/services/grpc/transaction_pb2_grpc.py) (клиентский stub и серверная регистрация методов). Эти файлы создаются из `.proto`, а не редактируются вручную.
+
+**Unary: один пакет → один ответ. Сервер — reflection и успешный пакет:**
 
 ```bash
 grpcurl -H "$BASIC_HEADER" seminar04.dataprosvet.ru:443 list
@@ -128,6 +133,63 @@ grpcurl -plaintext -d '{"transactions":[{"amount":125.5,"international":false,"m
 ```
 
 Запишите gRPC status и сообщение ошибки. Если Basic Auth включена, серверный вызов передаёт её через HTTP/2 metadata заголовок `Authorization`.
+
+**Server streaming: один пакет → последовательность предсказаний. Сервер:**
+
+```bash
+grpcurl -H "$BASIC_HEADER" -d '{"transactions":[{"id":"tx-1","amount":125.5,"international":false,"merchant_risk":0.2},{"id":"tx-2","amount":980,"international":true,"merchant_risk":0.8}]}' \
+  seminar04.dataprosvet.ru:443 seminar04.v1.TransactionInference/PredictBatchStream
+```
+
+**Локально:**
+
+```bash
+grpcurl -plaintext -d '{"transactions":[{"id":"tx-1","amount":125.5,"international":false,"merchant_risk":0.2},{"id":"tx-2","amount":980,"international":true,"merchant_risk":0.8}]}' \
+  127.0.0.1:8012 seminar04.v1.TransactionInference/PredictBatchStream
+```
+
+Сравните форму вывода с unary: здесь приходят отдельные сообщения `TransactionPrediction`, каждое со своим `id`.
+
+**Client streaming: несколько транзакций → одна сводка. Сервер:**
+
+```bash
+printf '%s\n' \
+  '{"id":"tx-1","amount":125.5,"international":false,"merchant_risk":0.2}' \
+  '{"id":"tx-2","amount":980,"international":true,"merchant_risk":0.8}' |
+  grpcurl -H "$BASIC_HEADER" -d @ seminar04.dataprosvet.ru:443 seminar04.v1.TransactionInference/AggregateTransactions
+```
+
+**Локально:**
+
+```bash
+printf '%s\n' \
+  '{"id":"tx-1","amount":125.5,"international":false,"merchant_risk":0.2}' \
+  '{"id":"tx-2","amount":980,"international":true,"merchant_risk":0.8}' |
+  grpcurl -plaintext -d @ 127.0.0.1:8012 seminar04.v1.TransactionInference/AggregateTransactions
+```
+
+`grpcurl -d @` читает отдельные JSON-сообщения из stdin. Запишите поля ответа `transactionCount`, `averageRisk` и `highRiskCount`: сводка приходит после завершения клиентского потока. В `.proto` они названы `transaction_count`, `average_risk` и `high_risk_count`; protobuf JSON выводит имена в camelCase.
+
+**Bidirectional streaming: отправка и ответы в одном вызове. Сервер:**
+
+```bash
+grpcurl -H "$BASIC_HEADER" -d @ seminar04.dataprosvet.ru:443 seminar04.v1.TransactionInference/PredictLive
+```
+
+**Локально:**
+
+```bash
+grpcurl -plaintext -d @ 127.0.0.1:8012 seminar04.v1.TransactionInference/PredictLive
+```
+
+Введите в открытом вызове по одной строке, нажимая Enter после каждой; затем завершите ввод Ctrl+D:
+
+```json
+{"id":"tx-live-1","amount":125.5,"international":false,"merchant_risk":0.2}
+{"id":"tx-live-2","amount":980,"international":true,"merchant_risk":0.8}
+```
+
+Сопоставьте ответы с `id` входящих сообщений и отметьте, появляется ли ответ до завершения ввода. Сравните поведение с WebSocket: оба поддерживают обмен последовательностью сообщений, но контракт и жизненный цикл вызова различаются. Для всех потоковых методов применяются те же правила валидации транзакции, что и для unary.
 
 ## 3. WebSocket: несколько предсказаний на одном соединении
 

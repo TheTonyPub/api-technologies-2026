@@ -26,7 +26,7 @@
   <main>
     <section aria-labelledby="title">
       <h1 id="title">Практическая работа 4. Выбор стиля взаимодействия с API</h1>
-      <p>Взаимодействуйте с четырьмя сервисами, имитирующими ML-инференс: REST сразу возвращает предсказание, gRPC принимает типизированный пакет транзакций, WebSocket обрабатывает поток измерений в одном соединении, а event-driven API передаёт задание отдельному обработчику.</p>
+      <p>Взаимодействуйте с четырьмя сервисами, имитирующими ML-инференс: REST сразу возвращает предсказание, gRPC демонстрирует четыре типа вызовов для транзакций, WebSocket обрабатывает поток измерений в одном соединении, а event-driven API передаёт задание отдельному обработчику.</p>
       <p>Модели используют простые детерминированные правила. Цель — исследовать протоколы: что отправляет клиент, когда получает ответ и где проходит граница между сервисами.</p>
       <p>Инструкция по установке Docker, Compose, запуску и поиску неисправностей находится в <a href="https://github.com/TheTonyPub/api-technologies-2026/blob/seminar/04-api-interaction-styles/README.md#локальный-запуск-сервисов-семинара-4">README репозитория</a>.</p>
     </section>
@@ -58,7 +58,10 @@ unset BASIC_PASS</code></pre>
           <tr><th scope="row">Event status/result</th><td><code>GET https://seminar04.dataprosvet.ru/events/v1/jobs/{job_id}</code></td><td><code>GET http://127.0.0.1:8014/v1/jobs/{job_id}</code></td></tr>
           <tr><th scope="row">Event docs</th><td><a href="https://seminar04.dataprosvet.ru/events/docs">GET https://seminar04.dataprosvet.ru/events/docs</a></td><td><a href="http://127.0.0.1:8014/docs">GET http://127.0.0.1:8014/docs</a></td></tr>
           <tr><th scope="row">gRPC method and reflection</th><td><code>seminar04.dataprosvet.ru:443</code> (TLS)</td><td><code>127.0.0.1:8012</code> (plaintext)</td></tr>
-          <tr><th scope="row">gRPC inference</th><td colspan="2"><code>seminar04.v1.TransactionInference/PredictBatch</code></td></tr>
+          <tr><th scope="row">gRPC unary</th><td colspan="2"><code>seminar04.v1.TransactionInference/PredictBatch</code></td></tr>
+          <tr><th scope="row">gRPC server streaming</th><td colspan="2"><code>seminar04.v1.TransactionInference/PredictBatchStream</code></td></tr>
+          <tr><th scope="row">gRPC client streaming</th><td colspan="2"><code>seminar04.v1.TransactionInference/AggregateTransactions</code></td></tr>
+          <tr><th scope="row">gRPC bidirectional streaming</th><td colspan="2"><code>seminar04.v1.TransactionInference/PredictLive</code></td></tr>
           <tr><th scope="row">NATS JetStream</th><td>Не открыт наружу</td><td><code>nats://127.0.0.1:4222</code></td></tr>
         </tbody>
       </table>
@@ -94,8 +97,10 @@ docker compose ps</code></pre>
       <p>Обязательное поле <code>monthly_spend</code> пропущено. Запишите статус и тело ошибки. Документация: локально <a href="http://127.0.0.1:8011/docs">http://127.0.0.1:8011/docs</a>; на хостинге <a href="https://seminar04.dataprosvet.ru/rest/docs">https://seminar04.dataprosvet.ru/rest/docs</a>.</p>
     </section>
     <section aria-labelledby="grpc">
-      <h2 id="grpc">2. gRPC: типизированный пакет</h2>
-      <p>gRPC использует HTTP/2 и protobuf-схемы. Reflection позволяет <code>grpcurl</code> обнаружить метод без скачивания proto-файла.</p>
+      <h2 id="grpc">2. gRPC: четыре типа вызовов</h2>
+      <p>gRPC использует HTTP/2 и protobuf-схемы. В <a href="https://github.com/TheTonyPub/api-technologies-2026/blob/seminar/04-api-interaction-styles/proto/transaction.proto">исходной схеме</a> ключевое слово <code>stream</code> у запроса или ответа задаёт тип вызова. Reflection позволяет <code>grpcurl</code> обнаружить все методы без скачивания proto-файла. О четырёх типах вызовов читайте в <a href="https://grpc.io/docs/what-is-grpc/core-concepts/">официальной документации gRPC</a> и <a href="https://alirezafarokhi.medium.com/what-is-grpc-and-different-types-of-grpc-services-9b86a7267064">статье из задания</a>. Все методы используют одну детерминированную оценку риска транзакции.</p>
+      <p>Сравните схему со сгенерированными модулями <a href="https://github.com/TheTonyPub/api-technologies-2026/blob/seminar/04-api-interaction-styles/services/grpc/transaction_pb2.py">transaction_pb2.py</a> (описания protobuf-сообщений) и <a href="https://github.com/TheTonyPub/api-technologies-2026/blob/seminar/04-api-interaction-styles/services/grpc/transaction_pb2_grpc.py">transaction_pb2_grpc.py</a> (клиентский stub и серверная регистрация методов). Они создаются из <code>.proto</code>, а не редактируются вручную.</p>
+      <p>Выполните unary, server streaming, client streaming и bidirectional streaming. Сравните число сообщений в запросе и ответе, момент получения результата и идентификаторы транзакций.</p>
       <h3>Сервер — reflection и успешный запрос</h3>
       <pre><code>grpcurl -H "$BASIC_HEADER" seminar04.dataprosvet.ru:443 list</code></pre>
       <pre><code>grpcurl -H "$BASIC_HEADER" seminar04.dataprosvet.ru:443 describe seminar04.v1.TransactionInference</code></pre>
@@ -114,6 +119,35 @@ grpcurl -plaintext -d '{"transactions":[{"id":"tx-1","amount":125.5,"internation
       <pre><code>grpcurl -plaintext -d '{"transactions":[{"amount":125.5,"international":false,"merchant_risk":0.2}]}' \
   127.0.0.1:8012 seminar04.v1.TransactionInference/PredictBatch</code></pre>
       <p>У обязательного поля <code>id</code> нет значения. Запишите gRPC status и сообщение; сравните с HTTP validation error REST.</p>
+      <h3>Server streaming: один пакет, несколько ответов</h3>
+      <p>Сервер:</p>
+      <pre><code>grpcurl -H "$BASIC_HEADER" -d '{"transactions":[{"id":"tx-1","amount":125.5,"international":false,"merchant_risk":0.2},{"id":"tx-2","amount":980,"international":true,"merchant_risk":0.8}]}' \
+  seminar04.dataprosvet.ru:443 seminar04.v1.TransactionInference/PredictBatchStream</code></pre>
+      <p>Локально:</p>
+      <pre><code>grpcurl -plaintext -d '{"transactions":[{"id":"tx-1","amount":125.5,"international":false,"merchant_risk":0.2},{"id":"tx-2","amount":980,"international":true,"merchant_risk":0.8}]}' \
+  127.0.0.1:8012 seminar04.v1.TransactionInference/PredictBatchStream</code></pre>
+      <p>Сравните вывод с unary: здесь приходят отдельные сообщения <code>TransactionPrediction</code>, каждое со своим <code>id</code>.</p>
+      <h3>Client streaming: несколько транзакций, одна сводка</h3>
+      <p>Сервер:</p>
+      <pre><code>printf '%s\n' \
+  '{"id":"tx-1","amount":125.5,"international":false,"merchant_risk":0.2}' \
+  '{"id":"tx-2","amount":980,"international":true,"merchant_risk":0.8}' |
+  grpcurl -H "$BASIC_HEADER" -d @ seminar04.dataprosvet.ru:443 seminar04.v1.TransactionInference/AggregateTransactions</code></pre>
+      <p>Локально:</p>
+      <pre><code>printf '%s\n' \
+  '{"id":"tx-1","amount":125.5,"international":false,"merchant_risk":0.2}' \
+  '{"id":"tx-2","amount":980,"international":true,"merchant_risk":0.8}' |
+  grpcurl -plaintext -d @ 127.0.0.1:8012 seminar04.v1.TransactionInference/AggregateTransactions</code></pre>
+      <p><code>grpcurl -d @</code> читает отдельные JSON-сообщения из stdin. Запишите поля ответа <code>transactionCount</code>, <code>averageRisk</code> и <code>highRiskCount</code>. Сводка приходит после завершения клиентского потока. В <code>.proto</code> эти поля записаны в snake_case; protobuf JSON выводит имена в camelCase.</p>
+      <h3>Bidirectional streaming: сообщения в обе стороны одного вызова</h3>
+      <p>Сервер:</p>
+      <pre><code>grpcurl -H "$BASIC_HEADER" -d @ seminar04.dataprosvet.ru:443 seminar04.v1.TransactionInference/PredictLive</code></pre>
+      <p>Локально:</p>
+      <pre><code>grpcurl -plaintext -d @ 127.0.0.1:8012 seminar04.v1.TransactionInference/PredictLive</code></pre>
+      <p>Введите в открытом вызове по одной строке, нажимая Enter после каждой; завершите ввод Ctrl+D:</p>
+      <pre><code>{"id":"tx-live-1","amount":125.5,"international":false,"merchant_risk":0.2}
+{"id":"tx-live-2","amount":980,"international":true,"merchant_risk":0.8}</code></pre>
+      <p>Сопоставьте ответы по <code>id</code> и отметьте, появляется ли ответ до завершения ввода. Сравните обмен с WebSocket. Во всех потоковых методах действуют те же правила валидации транзакции, что и в unary.</p>
     </section>
     <section aria-labelledby="websocket">
       <h2 id="websocket">3. WebSocket: поток предсказаний</h2>

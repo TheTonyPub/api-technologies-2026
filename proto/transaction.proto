@@ -3,7 +3,14 @@ syntax = "proto3";
 package seminar04.v1;
 
 service TransactionInference {
+  // One request and one response containing all predictions.
   rpc PredictBatch (PredictBatchRequest) returns (PredictBatchResponse);
+  // One request followed by one prediction message per transaction.
+  rpc PredictBatchStream (PredictBatchRequest) returns (stream TransactionPrediction);
+  // A stream of transactions followed by one aggregate response.
+  rpc AggregateTransactions (stream Transaction) returns (TransactionScoreSummary);
+  // Each incoming transaction receives its prediction while the stream stays open.
+  rpc PredictLive (stream Transaction) returns (stream TransactionPrediction);
 }
 
 message Transaction {
@@ -25,4 +32,10 @@ message TransactionPrediction {
 
 message PredictBatchResponse {
   repeated TransactionPrediction predictions = 1;
+}
+
+message TransactionScoreSummary {
+  uint32 transaction_count = 1;
+  double average_risk = 2;
+  uint32 high_risk_count = 3;
 }
