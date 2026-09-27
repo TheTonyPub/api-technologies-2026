@@ -33,7 +33,7 @@ async def predict(js, job_id: str, records: list[dict]) -> dict:
     except NotFoundError:
         pass
 
-    await asyncio.sleep(1)
+    await asyncio.sleep(30)
     results = []
     for record in records:
         normalized_usage = round(float(record["monthly_usage"]) / 1000.0, 3)
