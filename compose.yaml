@@ -1,0 +1,64 @@
+name: seminar04
+
+services:
+  rest-api:
+    build: { context: ., dockerfile: services/rest/Dockerfile }
+    image: seminar04-rest:local
+    environment: { HOSTING_TYPE: "${HOSTING_TYPE:-local}" }
+    ports: ["127.0.0.1:8011:8011"]
+    networks: [app, edge]
+    restart: unless-stopped
+
+  grpc-api:
+    build:
+      context: .
+      dockerfile: services/grpc/Dockerfile
+    image: seminar04-grpc:local
+    ports: ["127.0.0.1:8012:8012"]
+    networks: [app, edge]
+    restart: unless-stopped
+
+  websocket-api:
+    build: { context: ., dockerfile: services/websocket/Dockerfile }
+    image: seminar04-websocket:local
+    environment: { HOSTING_TYPE: "${HOSTING_TYPE:-local}" }
+    ports: ["127.0.0.1:8013:8013"]
+    networks: [app, edge]
+    restart: unless-stopped
+
+  event-api:
+    build: { context: ., dockerfile: services/event_api/Dockerfile }
+    image: seminar04-event-api:local
+    environment:
+      HOSTING_TYPE: "${HOSTING_TYPE:-local}"
+      NATS_URL: nats://nats:4222
+    ports: ["127.0.0.1:8014:8014"]
+    networks: [app, edge]
+    depends_on: [nats]
+    restart: unless-stopped
+
+  event-worker:
+    build: { context: ., dockerfile: services/event_worker/Dockerfile }
+    image: seminar04-event-worker:local
+    environment: { NATS_URL: nats://nats:4222 }
+    networks: [app]
+    depends_on: [nats]
+    restart: unless-stopped
+
+  nats:
+    image: nats:2.12-alpine
+    command: ["-js", "--store_dir", "/data"]
+    volumes: [nats-data:/data]
+    ports: ["127.0.0.1:4222:4222"]
+    networks: [app]
+    restart: unless-stopped
+
+networks:
+  app:
+    driver: bridge
+  edge:
+    name: "${CADDY_NETWORK:-seminar04-edge}"
+    external: "${CADDY_NETWORK_EXTERNAL:-false}"
+
+volumes:
+  nats-data:

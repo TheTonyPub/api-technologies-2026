@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package seminar04.v1;
+
+service TransactionInference {
+  rpc PredictBatch (PredictBatchRequest) returns (PredictBatchResponse);
+}
+
+message Transaction {
+  string id = 1;
+  double amount = 2;
+  bool international = 3;
+  double merchant_risk = 4;
+}
+
+message PredictBatchRequest {
+  repeated Transaction transactions = 1;
+}
+
+message TransactionPrediction {
+  string id = 1;
+  double risk_score = 2;
+  string risk_label = 3;
+}
+
+message PredictBatchResponse {
+  repeated TransactionPrediction predictions = 1;
+}

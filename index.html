@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Практическая работа 4 курса API-технологии: сравнение REST, gRPC, WebSocket и event-driven взаимодействия.">
+  <title>Семинар 4 — стили взаимодействия API</title>
+  <style>
+    :root { color-scheme: light; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1f2937; background: #f3f4f6; }
+    body { margin: 0; padding: 24px 16px; }
+    main { max-width: 960px; margin: 0 auto; }
+    section { margin-bottom: 20px; padding: clamp(18px, 4vw, 28px); border: 1px solid #d1d5db; border-radius: 12px; background: #fff; }
+    h1, h2 { margin-top: 0; line-height: 1.25; }
+    li { margin: 8px 0; }
+    a { color: #174ea6; font-weight: 600; overflow-wrap: anywhere; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    code { overflow-wrap: anywhere; }
+    pre { padding: 14px; overflow-x: auto; border-radius: 8px; background: #f3f4f6; line-height: 1.5; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px; border: 1px solid #d1d5db; text-align: left; vertical-align: top; }
+    .note { color: #4b5563; }
+    @media (max-width: 640px) { body { padding: 12px 8px; } section { padding: 16px; } table { display: block; overflow-x: auto; } }
+  </style>
+</head>
+<body>
+  <main>
+    <section aria-labelledby="title">
+      <h1 id="title">Практическая работа 4. Выбор стиля взаимодействия с API</h1>
+      <p>Взаимодействуйте с четырьмя сервисами, имитирующими ML-инференс: REST сразу возвращает предсказание, gRPC принимает типизированный пакет транзакций, WebSocket обрабатывает поток измерений в одном соединении, а event-driven API передаёт задание отдельному обработчику.</p>
+      <p>Модели используют простые детерминированные правила. Цель — исследовать протоколы: что отправляет клиент, когда получает ответ и где проходит граница между сервисами.</p>
+      <p>Инструкция по установке Docker, Compose, запуску и поиску неисправностей находится в <a href="https://github.com/TheTonyPub/api-technologies-2026/blob/seminar/04-api-interaction-styles/README.md#локальный-запуск-сервисов-семинара-4">README репозитория</a>.</p>
+    </section>
+    <section aria-labelledby="tools">
+      <h2 id="tools">Что понадобится</h2>
+      <ul>
+        <li>Docker Engine с Compose plugin или Docker Desktop; терминал macOS, Linux или WSL.</li>
+        <li><a href="https://curl.se/download.html">cURL</a> для HTTP-запросов.</li>
+        <li><a href="https://github.com/fullstorydev/grpcurl#installation">grpcurl</a> для gRPC (Homebrew: <code>brew install grpcurl</code>).</li>
+        <li><a href="https://github.com/vi/websocat#installation">websocat</a> для WebSocket (Homebrew: <code>brew install websocat</code>).</li>
+        <li><a href="https://github.com/nats-io/natscli#installation">NATS CLI</a> для изучения брокера; CLI подключается к локальному NATS на <code>127.0.0.1:4222</code>.</li>
+      </ul>
+    </section>
+    <section aria-labelledby="setup">
+      <h2 id="setup">Подготовка стенда</h2>
+      <p>Переключитесь на ветку <code>seminar/04-api-interaction-styles</code>, скопируйте <code>.env.example</code> в <code>.env</code>, оставьте <code>HOSTING_TYPE=local</code> и запустите из корня репозитория:</p>
+      <pre><code>docker compose build
+docker compose up -d
+docker compose ps</code></pre>
+      <p>Локальные адреса: REST — <code>http://127.0.0.1:8011/v1/predict</code>; gRPC — <code>127.0.0.1:8012</code>; WebSocket — <code>ws://127.0.0.1:8013/v1/live</code>; event API — <code>http://127.0.0.1:8014/v1/jobs</code> и <code>/v1/jobs/{job_id}</code>.</p>
+      <p>На серверном стенде используйте <code>https://seminar04.dataprosvet.ru/rest</code>, <code>wss://seminar04.dataprosvet.ru/stream</code>, <code>https://seminar04.dataprosvet.ru/events</code>. gRPC — <code>seminar04.dataprosvet.ru:443</code>, метод <code>/seminar04.v1.TransactionInference/PredictBatch</code>. Узнайте у преподавателя, включена ли Basic Auth. NATS доступен только локально и не проксируется через Caddy.</p>
+    </section>
+    <section aria-labelledby="rest">
+      <h2 id="rest">1. REST: немедленный ответ</h2>
+      <p>Передайте срок обслуживания клиента, месячные расходы и число обращений в поддержку. Ответ содержит оценку риска <code>risk_score</code> и метку <code>risk_label</code>.</p>
+      <h3>Успешный запрос</h3>
+      <pre><code>curl -i -X POST http://127.0.0.1:8011/v1/predict \
+  -H 'Content-Type: application/json' \
+  -d '{"tenure_months":18,"monthly_spend":240.5,"support_tickets":2}'</code></pre>
+      <p>Путь на хостинге: <code>POST https://seminar04.dataprosvet.ru/rest/v1/predict</code>. Запишите HTTP-код и оба поля результата. Предсказание приходит в ответе на тот же вызов.</p>
+      <h3>Запрос с ошибкой</h3>
+      <pre><code>curl -i -X POST http://127.0.0.1:8011/v1/predict \
+  -H 'Content-Type: application/json' \
+  -d '{"tenure_months":18,"support_tickets":2}'</code></pre>
+      <p>Обязательное поле <code>monthly_spend</code> пропущено. Запишите статус и тело ошибки. Документация: <code>http://127.0.0.1:8011/docs</code> локально и <code>https://seminar04.dataprosvet.ru/rest/docs</code> на хостинге.</p>
+    </section>
+    <section aria-labelledby="grpc">
+      <h2 id="grpc">2. gRPC: типизированный пакет</h2>
+      <p>gRPC использует HTTP/2 и protobuf-схемы. Reflection позволяет <code>grpcurl</code> обнаружить метод без скачивания proto-файла.</p>
+      <h3>Успешный запрос</h3>
+      <pre><code>grpcurl -plaintext 127.0.0.1:8012 list
+grpcurl -plaintext 127.0.0.1:8012 describe seminar04.v1.TransactionInference
+grpcurl -plaintext -d '{"transactions":[{"id":"tx-1","amount":125.5,"international":false,"merchant_risk":0.2},{"id":"tx-2","amount":980,"international":true,"merchant_risk":0.8}]}' \
+  127.0.0.1:8012 seminar04.v1.TransactionInference/PredictBatch</code></pre>
+      <p>В <code>predictions</code> сопоставьте каждый результат с идентификатором транзакции. На сервере используйте TLS: <code>grpcurl -d '{"transactions":[{"id":"tx-1","amount":125.5,"international":false,"merchant_risk":0.2}]}' seminar04.dataprosvet.ru:443 seminar04.v1.TransactionInference/PredictBatch</code>.</p>
+      <h3>Запрос с ошибкой</h3>
+      <pre><code>grpcurl -plaintext -d '{"transactions":[{"amount":125.5,"international":false,"merchant_risk":0.2}]}' \
+  127.0.0.1:8012 seminar04.v1.TransactionInference/PredictBatch</code></pre>
+      <p>У обязательного поля <code>id</code> нет значения. Запишите gRPC status и сообщение; сравните с HTTP validation error REST.</p>
+    </section>
+    <section aria-labelledby="websocket">
+      <h2 id="websocket">3. WebSocket: поток предсказаний</h2>
+      <p>Сервис принимает измерения температуры, вибрации и оборотов двигателя. Отправьте несколько сообщений в одном открытом соединении и получите оценку <code>anomaly_score</code> и флаг <code>anomaly</code> для каждого.</p>
+      <h3>Успешные сообщения в одном соединении</h3>
+      <pre><code>websocat -t ws://127.0.0.1:8013/v1/live</code></pre>
+      <p>Введите по одной строке, нажимая Enter после каждой:</p>
+      <pre><code>{"temperature":65,"vibration":0.12,"rpm":1400}
+{"temperature":112,"vibration":0.91,"rpm":2800}</code></pre>
+      <p>После каждой строки найдите ответ с <code>anomaly_score</code> и <code>anomaly</code>. На хостинге подключитесь командой <code>websocat -t wss://seminar04.dataprosvet.ru/stream/v1/live</code>.</p>
+      <h3>Сообщение с ошибкой</h3>
+      <p>Не закрывая локальный сеанс, введите:</p>
+      <pre><code>{"temperature":65,"rpm":1400}</code></pre>
+      <p>Поле <code>vibration</code> пропущено. Сервис возвращает сообщение <code>{"error":"invalid_telemetry","detail":"..."}</code> и оставляет соединение открытым. Введите ещё одно корректное сообщение, получите новое предсказание и завершите сеанс Ctrl+D. Сравните задержку ответа в уже открытом WebSocket-соединении с REST-запросом.</p>
+    </section>
+    <section aria-labelledby="events">
+      <h2 id="events">4. Event-driven: задание для отдельного worker</h2>
+      <p>HTTP endpoint принимает пакет и отвечает <code>202 Accepted</code> с <code>job_id</code>. Затем event API публикует запрос в NATS JetStream. Отдельный worker выполняет нормализацию и inference и публикует результат. Код 202 означает, что задание принято, но ещё не обязательно завершено.</p>
+      <h3>Успешное задание и получение статуса</h3>
+      <pre><code>curl -i -X POST http://127.0.0.1:8014/v1/jobs \
+  -H 'Content-Type: application/json' \
+  -d '{"records":[{"customer_id":"c-1","monthly_usage":42,"support_tickets":1},{"customer_id":"c-2","monthly_usage":105,"support_tickets":4}]}'</code></pre>
+      <p>Сохраните <code>job_id</code> из ответа и подставьте его в команду:</p>
+      <pre><code>JOB_ID='вставьте-job_id-из-ответа'
+curl -i "http://127.0.0.1:8014/v1/jobs/$JOB_ID"</code></pre>
+      <p>Если статус ещё <code>pending</code>, повторите GET через короткий интервал. После завершения сохраните результаты. На хостинге: <code>POST https://seminar04.dataprosvet.ru/events/v1/jobs</code>, затем GET <code>/events/v1/jobs/{job_id}</code>.</p>
+      <h3>Неверное тело</h3>
+      <pre><code>curl -i -X POST http://127.0.0.1:8014/v1/jobs \
+  -H 'Content-Type: application/json' \
+  -d '{}'</code></pre>
+      <p>В теле нет обязательного списка <code>records</code>; запишите ошибку валидации.</p>
+      <h3>Посмотрите события в локальном NATS</h3>
+      <pre><code>nats --server nats://127.0.0.1:4222 stream ls
+nats --server nats://127.0.0.1:4222 stream view INFERENCE --subject 'inference.request.&gt;'
+nats --server nats://127.0.0.1:4222 stream view INFERENCE --subject 'inference.result.&gt;'</code></pre>
+      <p>Найдите request и result события с subject <code>inference.request.&lt;job_id&gt;</code> и <code>inference.result.&lt;job_id&gt;</code>. Сопоставьте идентификатор в HTTP-ответе, NATS и GET-результате. Просмотр потока интерактивный. Прямой просмотр брокера доступен только в локальном Compose; NATS не публикуется через Caddy.</p>
+    </section>
+    <section aria-labelledby="compare">
+      <h2 id="compare">Сравните стили</h2>
+      <p>Заполните таблицу. Для каждого сценария объясните, требуется ли немедленный ответ, допустима ли обработка в фоне и нужно ли постоянное соединение.</p>
+      <table>
+        <thead><tr><th scope="col">Сценарий</th><th scope="col">Стиль</th><th scope="col">Обоснование</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Бизнес-сервис: сразу показать данные клиента</th><td></td><td></td></tr>
+          <tr><th scope="row">ETL: принять пакет и сообщить о готовности после фоновой обработки</th><td></td><td></td></tr>
+          <tr><th scope="row">ML: оценивать поток телеметрии без повторного соединения</th><td></td><td></td></tr>
+        </tbody>
+      </table>
+      <p>Объясните, почему HTTP endpoint с ответом 202 сам по себе ещё не образует event-driven архитектуру. Опишите роль брокера и отдельного worker.</p>
+    </section>
+    <section aria-labelledby="submit">
+      <h2 id="submit">Что сдать</h2>
+      <ol>
+        <li>Текстовый журнал успешных и ошибочных команд и ответов для каждого сервиса. Подпишите локальный или серверный адрес и HTTP/gRPC/WebSocket статус.</li>
+        <li>Для задания event-driven сохраните <code>job_id</code>, время ответа 202, результат опроса GET и вывод NATS CLI с совпадающими request/result событиями.</li>
+        <li>Заполненную таблицу выбора стилей и наблюдения о времени ответа и корреляции.</li>
+      </ol>
+      <p class="note">В macOS/Linux/WSL запишите терминальный сеанс командой <code>script -q seminar04.log</code>, завершите его командой <code>exit</code>. Не включайте в журнал токены, пароли, Basic Auth credentials или содержимое <code>.env</code>; удалите их также из подробного вывода перед сдачей.</p>
+    </section>
+  </main>
+</body>
+</html>
