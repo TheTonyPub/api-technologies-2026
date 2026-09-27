@@ -13,8 +13,11 @@ seminar04.dataprosvet.ru {
 	# Keep gRPC's native service/method path intact; Caddy proxies HTTP/2 cleartext
 	# from its TLS-terminating listener to the backend (h2c).
 	# grpcurl also calls server reflection to discover the protobuf schema.
+	# Use handle so the homepage fallback cannot consume gRPC requests first.
 	@grpc path /seminar04.v1.TransactionInference/* /grpc.reflection.v1.ServerReflection/* /grpc.reflection.v1alpha.ServerReflection/*
-	reverse_proxy @grpc h2c://seminar04-grpc-api:8012
+	handle @grpc {
+		reverse_proxy h2c://seminar04-grpc-api:8012
+	}
 
 	# handle_path strips the public prefix before forwarding. FastAPI receives
 	# root_path=/rest, /events or /stream from HOSTING_TYPE=server.
