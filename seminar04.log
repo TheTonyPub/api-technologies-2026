@@ -1,0 +1,146 @@
+﻿
+===== REST https://seminar04.dataprosvet.ru/rest/v1/predict =====
+PS C:\Users\dania\Desktop\sem4> curl.exe -i -X POST https://seminar04.dataprosvet.ru/rest/v1/predict -H $env:BASIC_HEADER -H "Content-Type: application/json" -d "@rest_ok.json"
+HTTP/1.1 200 OK
+Alt-Svc: h3=":443"; ma=2592000
+Content-Length: 39
+Content-Type: application/json
+Date: Mon, 28 Sep 2026 08:31:06 GMT
+Server: uvicorn
+Via: 1.1 Caddy
+
+{"risk_score":0.85,"risk_label":"high"}
+PS C:\Users\dania\Desktop\sem4> curl.exe -s -o NUL -w "time_total=%{time_total}\n" -X POST https://seminar04.dataprosvet.ru/rest/v1/predict -H $env:BASIC_HEADER -H "Content-Type: application/json" -d "@rest_ok.json"
+time_total=0.934417
+PS C:\Users\dania\Desktop\sem4> curl.exe -i -X POST https://seminar04.dataprosvet.ru/rest/v1/predict -H $env:BASIC_HEADER -H "Content-Type: application/json" -d "@rest_err.json"
+HTTP/1.1 422 Unprocessable Entity
+Alt-Svc: h3=":443"; ma=2592000
+Content-Length: 134
+Content-Type: application/json
+Date: Mon, 28 Sep 2026 08:32:56 GMT
+Server: uvicorn
+Via: 1.1 Caddy
+
+{"detail":[{"type":"missing","loc":["body","monthly_spend"],"msg":"Field required","input":{"tenure_months":18,"support_tickets":2}}]}
+
+===== gRPC seminar04.dataprosvet.ru:443 (TLS) =====
+PS C:\Users\dania\Desktop\sem4> $h = "seminar04.dataprosvet.ru:443"
+PS C:\Users\dania\Desktop\sem4> $s = "seminar04.v1.TransactionInference"
+PS C:\Users\dania\Desktop\sem4> .\grpcurl.exe -H $env:BASIC_HEADER $h list
+grpc.reflection.v1alpha.ServerReflection
+seminar04.v1.TransactionInference
+PS C:\Users\dania\Desktop\sem4> .\grpcurl.exe -H $env:BASIC_HEADER $h describe $s
+seminar04.v1.TransactionInference is a service:
+service TransactionInference {
+  rpc AggregateTransactions ( stream .seminar04.v1.Transaction ) returns ( .seminar04.v1.TransactionScoreSummary );
+  rpc PredictBatch ( .seminar04.v1.PredictBatchRequest ) returns ( .seminar04.v1.PredictBatchResponse );
+  rpc PredictBatchStream ( .seminar04.v1.PredictBatchRequest ) returns ( stream .seminar04.v1.TransactionPrediction );
+  rpc PredictLive ( stream .seminar04.v1.Transaction ) returns ( stream .seminar04.v1.TransactionPrediction );
+}
+PS C:\Users\dania\Desktop\sem4> # unary
+PS C:\Users\dania\Desktop\sem4> Get-Content batch.json -Raw | .\grpcurl.exe -H $env:BASIC_HEADER -d "@" $h "$s/PredictBatch"
+{
+  "predictions": [
+    {
+      "id": "tx-1",
+      "risk_score": 0.213,
+      "risk_label": "low"
+    },
+    {
+      "id": "tx-2",
+      "risk_score": 0.848,
+      "risk_label": "high"
+    }
+  ]
+}
+PS C:\Users\dania\Desktop\sem4> # ошибка (нет id)
+PS C:\Users\dania\Desktop\sem4> Get-Content batch_err.json -Raw | .\grpcurl.exe -H $env:BASIC_HEADER -d "@" $h "$s/PredictBatch"
+ERROR:
+  Code: InvalidArgument
+  Message: transaction id must not be empty
+PS C:\Users\dania\Desktop\sem4> # server streaming
+PS C:\Users\dania\Desktop\sem4> Get-Content batch.json -Raw | .\grpcurl.exe -H $env:BASIC_HEADER -d "@" $h "$s/PredictBatchStream"
+{
+  "id": "tx-1",
+  "risk_score": 0.213,
+  "risk_label": "low"
+}
+{
+  "id": "tx-2",
+  "risk_score": 0.848,
+  "risk_label": "high"
+}
+PS C:\Users\dania\Desktop\sem4> # client streaming
+PS C:\Users\dania\Desktop\sem4> Get-Content stream.json | .\grpcurl.exe -H $env:BASIC_HEADER -d "@" $h "$s/AggregateTransactions"
+{
+  "transaction_count": 2,
+  "average_risk": 0.53,
+  "high_risk_count": 1
+}
+PS C:\Users\dania\Desktop\sem4> .\grpcurl.exe -H $env:BASIC_HEADER -d "@" $h "$s/PredictLive"
+{"id":"tx-live-1","amount":125.5,"international":false,"merchant_risk":0.2}
+{
+  "id": "tx-live-1",
+  "risk_score": 0.213,
+  "risk_label": "low"
+}
+{"id":"tx-live-2","amount":980,"international":true,"merchant_risk":0.8}
+{
+  "id": "tx-live-2",
+  "risk_score": 0.848,
+  "risk_label": "high"
+}
+^Z
+PS C:\Users\dania\Desktop\sem4>
+
+===== WebSocket wss://seminar04.dataprosvet.ru/stream/v1/live (два сеанса) =====
+--- сеанс 1 ---
+PS C:\Users\dania\Desktop\sem4> .\websocat.exe -t wss://seminar04.dataprosvet.ru/stream/v1/live -H $env:BASIC_HEADER
+{"temperature":65,"vibration":0.12,"rpm":1400}
+{"anomaly_score":0.012,"anomaly":false}
+{"temperature":112,"vibration":0.91,"rpm":2800}
+{"anomaly_score":0.616,"anomaly":true}
+{"temperature":65,"rpm":1400}
+{"error":"invalid_telemetry","detail":"1 validation error for Telemetry\nvibration\n  Field required [type=missing, input_value={'temperature': 65, 'rpm': 1400}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.10/v/missing"}
+--- сеанс 2 ---
+PS C:\Users\dania\Desktop\sem4> .\websocat.exe -t wss://seminar04.dataprosvet.ru/stream/v1/live -H $env:BASIC_HEADER
+{"temperature":65,"rpm":1400}
+{"error":"invalid_telemetry","detail":"1 validation error for Telemetry\nvibration\n  Field required [type=missing, input_value={'temperature': 65, 'rpm': 1400}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.10/v/missing"}
+{"temperature":65,"vibration":0.12,"rpm":1400}
+{"anomaly_score":0.012,"anomaly":false}
+PS C:\Users\dania\Desktop\sem4>
+
+===== Event-driven https://seminar04.dataprosvet.ru/events/v1/jobs =====
+PS C:\Users\dania\Desktop\sem4> Get-Date -Format "HH:mm:ss.fff"; curl.exe -i -X POST https://seminar04.dataprosvet.ru/events/v1/jobs -H $env:BASIC_HEADER -H "Content-Type: application/json" -d "@job_ok.json"
+11:57:15.629
+HTTP/1.1 202 Accepted
+Alt-Svc: h3=":443"; ma=2592000
+Content-Length: 68
+Content-Type: application/json
+Date: Mon, 28 Sep 2026 08:57:16 GMT
+Server: uvicorn
+Via: 1.1 Caddy
+
+{"job_id":"d65c5db6-031e-48e7-95c7-88dd835cb863","status":"pending"}
+PS C:\Users\dania\Desktop\sem4> $JOB_ID = "d65c5db6-031e-48e7-95c7-88dd835cb863"
+PS C:\Users\dania\Desktop\sem4> curl.exe -i -H $env:BASIC_HEADER "https://seminar04.dataprosvet.ru/events/v1/jobs/$JOB_ID"
+HTTP/1.1 200 OK
+Alt-Svc: h3=":443"; ma=2592000
+Content-Length: 252
+Content-Type: application/json
+Date: Mon, 28 Sep 2026 08:59:23 GMT
+Server: uvicorn
+Via: 1.1 Caddy
+
+{"job_id":"d65c5db6-031e-48e7-95c7-88dd835cb863","status":"completed","results":[{"customer_id":"c-1","normalized_usage":0.042,"risk_score":0.272,"risk_label":"low"},{"customer_id":"c-2","normalized_usage":0.105,"risk_score":0.575,"risk_label":"low"}]}
+PS C:\Users\dania\Desktop\sem4> curl.exe -i -X POST https://seminar04.dataprosvet.ru/events/v1/jobs -H $env:BASIC_HEADER -H "Content-Type: application/json" -d "@job_err.json"
+HTTP/1.1 422 Unprocessable Entity
+Alt-Svc: h3=":443"; ma=2592000
+Content-Length: 90
+Content-Type: application/json
+Date: Mon, 28 Sep 2026 09:00:29 GMT
+Server: uvicorn
+Via: 1.1 Caddy
+
+{"detail":[{"type":"missing","loc":["body","records"],"msg":"Field required","input":{}}]}
+PS C:\Users\dania\Desktop\sem4>
