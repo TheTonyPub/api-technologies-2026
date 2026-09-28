@@ -1,0 +1,172 @@
+Script started on 2026-09-28 11:18:56+03:00 [TERM="xterm-256color" TTY="/dev/pts/0" COLUMNS="120" LINES="30"]
+[?2004h]0;useruser@DESKTOP-S8B80KK: ~[01;32museruser@DESKTOP-S8B80KK[00m:[01;34m~[00m$ printf 'Basic Auth user: '; IFS= read -r BASIC_USER
+[?2004lBasic Auth user: S student
+[?2004h]0;useruser@DESKTOP-S8B80KK: ~[01;32museruser@DESKTOP-S8B80KK[00m:[01;34m~[00m$ printf 'Basic Auth password: '; IFS= read -rs BASIC_PASS; printf '\n'
+[?2004lBasic Auth password: 
+[?2004h]0;useruser@DESKTOP-S8B80KK: ~[01;32museruser@DESKTOP-S8B80KK[00m:[01;34m~[00m$ BASIC_HEADER="Authorization: Basic $(printf '%s' "$BASIC_USER:$BASIC_PASS" | base64 | tr -d '\r\n')"
+[?2004l[?2004h]0;useruser@DESKTOP-S8B80KK: ~[01;32museruser@DESKTOP-S8B80KK[00m:[01;34m~[00m$ unset BASIC_PASS
+[?2004l[?2004h]0;useruser@DESKTOP-S8B80KK: ~[01;32museruser@DESKTOP-S8B80KK[00m:[01;34m~[00m$ curl -i -X POST https://seminar04.dataprosvet.ru/rest/v1/predict \
+[?2004l[?2004h>   -H "$BASIC_HEADER" -H 'Content-Type: application/json' \
+[?2004l[?2004h>   -d '{"tenure_months":18,"monthly_spend":240.5,"support_tickets":2}'
+[?2004lHTTP/2 401 
+[1malt-svc[0m: h3=":443"; ma=2592000
+[1mserver[0m: Caddy
+[1mwww-authenticate[0m: Basic realm="restricted"
+[1mcontent-length[0m: 0
+[1mdate[0m: Mon, 28 Sep 2026 08:22:42 GMT
+
+[?2004h]0;useruser@DESKTOP-S8B80KK: ~[01;32museruser@DESKTOP-S8B80KK[00m:[01;34m~[00m$ усрщ[K[K[K[Kecho @[K$bA[K[KBASIC_HEADER
+[?2004lAuthorization: Basic c3R1ZGVudDphd2Vzb21lLWFwaS10ZWNoYXdlc29tZS1hcGktdGVjaA==
+[?2004h]0;useruser@DESKTOP-S8B80KK: ~[01;32museruser@DESKTOP-S8B80KK[00m:[01;34m~[00m$ printf 'Basic Auth password: '; IFS= read -rs BASIC_PASS; printf '\n'
+[?2004lBasic Auth password: 
+[?2004h]0;useruser@DESKTOP-S8B80KK: ~[01;32museruser@DESKTOP-S8B80KK[00m:[01;34m~[00m$  BASIC_HEADER="Authorization: Basic $(printf '%s' "$BASIC_USER:$BASIC_PASS" | base64 | tr -d '\r\n')"
+[?2004l[?2004h]0;useruser@DESKTOP-S8B80KK: ~[01;32museruser@DESKTOP-S8B80KK[00m:[01;34m~[00m$ curl -i -X POST https://seminar04.dataprosvet.ru/rest/v1/predict \
+[?2004l[?2004h>   -H "$BASIC_HEADER" -H 'Content-Type: application/json' \
+[?2004l  -d '{"tenure[?2004h>   -d '{"tenure_months":18,"monthly_spend":240.5,"support_tickets":2}'
+[?2004lHTTP/2 200 
+[1malt-svc[0m: h3=":443"; ma=2592000
+[1mcontent-type[0m: application/json
+[1mdate[0m: Mon, 28 Sep 2026 08:26:52 GMT
+[1mserver[0m: uvicorn
+[1mvia[0m: 1.1 Caddy
+[1mcontent-length[0m: 39
+
+{"risk_score":0.85,"risk_label":"high"}[?2004h]0;useruser@DESKTOP-S8B80KK: ~[01;32museruser@DESKTOP-S8B80KK[00m:[01;34m~[00m$ curl -i -X POST https://seminar04.dataprosvet.ru/rest/v1/predict \
+[?2004l[?2004h>   -H "$BASIC_HEADER" -H 'Content-Type: application/json' \
+[?2004l[?2004h>   -d '{"tenure_months":18,"support_tickets":2}'
+[?2004lHTTP/2 422 
+[1malt-svc[0m: h3=":443"; ma=2592000
+[1mcontent-type[0m: application/json
+[1mdate[0m: Mon, 28 Sep 2026 08:27:27 GMT
+[1mserver[0m: uvicorn
+[1mvia[0m: 1.1 Caddy
+[1mcontent-length[0m: 134
+
+{"detail":[{"type":"missing","loc":["body","monthly_spend"],"msg":"Field required","input":{"tenure_months":18,"support_tickets":2}}]}[?2004h]0;useruser@DESKTOP-S8B80KK: ~[01;32museruser@DESKTOP-S8B80KK[00m:[01;34m~[00m$ z[Kgrpcurl -H "$BASIC_HEADER" seminar04.dataprosvet.ru:443 list
+[?2004lgrpc.reflection.v1alpha.ServerReflection
+seminar04.v1.TransactionInference
+[?2004h]0;useruser@DESKTOP-S8B80KK: ~[01;32museruser@DESKTOP-S8B80KK[00m:[01;34m~[00m$ grpcurl -H "$BASIC_HEADER" seminar04.dataprosvet.ru:443 describe seminar04.v1.TransactionInference
+[?2004lseminar04.v1.TransactionInference is a service:
+service TransactionInference {
+  rpc AggregateTransactions ( stream .seminar04.v1.Transaction ) returns ( .seminar04.v1.TransactionScoreSummary );
+  rpc PredictBatch ( .seminar04.v1.PredictBatchRequest ) returns ( .seminar04.v1.PredictBatchResponse );
+  rpc PredictBatchStream ( .seminar04.v1.PredictBatchRequest ) returns ( stream .seminar04.v1.TransactionPrediction );
+  rpc PredictLive ( stream .seminar04.v1.Transaction ) returns ( stream .seminar04.v1.TransactionPrediction );
+}
+[?2004h]0;useruser@DESKTOP-S8B80KK: ~[01;32museruser@DESKTOP-S8B80KK[00m:[01;34m~[00m$ rpcurl -H "$BASIC_HEADER" -d '{"transactions":[{"id":"tx-1","amount":125.5,"international":false,"merchant_risk":0.2},{"id":"tx-2","amount":980,"international":true,"merchant_risk":0.8}]}' \
+[?2004l[?2004h>   seminar04.dataprosvet.ru:443 seminar04.v1.TransactionInference/PredictBatch
+[?2004lrpcurl: command not found
+[?2004h]0;useruser@DESKTOP-S8B80KK: ~[01;32museruser@DESKTOP-S8B80KK[00m:[01;34m~[00m$ grpcurl -H "$BASIC_HEADER" -d '{"transactions":[{"id":"tx-1","amount":125.5,"international":false,"merchant_risk":0.2},{"id":"tx-2","amount":980,"international":true,"merchant_risk":0.8}]}' \
+[?2004l[?2004h>   seminar04.dataprosvet.ru:443 seminar04.v1.TransactionInference/PredictBatch
+[?2004l{
+  "predictions": [
+    {
+      "id": "tx-1",
+      "risk_score": 0.213,
+      "risk_label": "low"
+    },
+    {
+      "id": "tx-2",
+      "risk_score": 0.848,
+      "risk_label": "high"
+    }
+  ]
+}
+[?2004h]0;useruser@DESKTOP-S8B80KK: ~[01;32museruser@DESKTOP-S8B80KK[00m:[01;34m~[00m$ grpcurl -H "$BASIC_HEADER" -d '{"transactions":[{"amount":125.5,"international":false,"merchant_risk":0.2}]}' \
+[?2004l[?2004h>   seminar04.dataprosvet.ru:443 seminar04.v1.TransactionInference/PredictBatch
+[?2004lERROR:
+  Code: InvalidArgument
+  Message: transaction id must not be empty
+[?2004h]0;useruser@DESKTOP-S8B80KK: ~[01;32museruser@DESKTOP-S8B80KK[00m:[01;34m~[00m$ grpcurl -H "$BASIC_HEADER" -d '{"transactions":[{"id":"tx-1","amount":125.5,"international":false,"merchant_risk":0.2},{"id":"tx-2","amount":980,"international":true,"merchant_risk":0.8}]}' \
+[?2004l[?2004h>   seminar04.dataprosvet.ru:443 seminar04.v1.TransactionInference/PredictBatchStream
+[?2004l{
+  "id": "tx-1",
+  "risk_score": 0.213,
+  "risk_label": "low"
+}
+{
+  "id": "tx-2",
+  "risk_score": 0.848,
+  "risk_label": "high"
+}
+[?2004h]0;useruser@DESKTOP-S8B80KK: ~[01;32museruser@DESKTOP-S8B80KK[00m:[01;34m~[00m$ printf '%s\n' \
+[?2004l[?2004h>   '{"id":"tx-1","amount":125.5,"international":false,"merchant_risk":0.2}' \
+[?2004l[?2004h>   '{"id":"tx-2","amount":980,"international":true,"merchant_risk":0.8}' |
+[?2004l[?2004h>   grpcurl -H "$BASIC_HEADER" -d @ seminar04.dataprosvet.ru:443 seminar04.v1.TransactionInference/AggregateTransactions [A[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Ks
+[?2004l{
+  "transaction_count": 2,
+  "average_risk": 0.53,
+  "high_risk_count": 1
+}
+[?2004h]0;useruser@DESKTOP-S8B80KK: ~[01;32museruser@DESKTOP-S8B80KK[00m:[01;34m~[00m$ grpcurl -H "$BASIC_HEADER" -d @ seminar04.dataprosvet.ru:443 seminar04.v1.TransactionInference/PredictLive
+[?2004l{"id":"tx-live-1","amount":125.5,"international":false,"merchant_risk":0.2}
+{"id":"tx-live-2","amount":980,"international":true,"merchant_risk":0.8{
+  "id": "tx-live-1",
+  "risk_score": 0.213,
+  "risk_label": "low"
+}
+}
+{
+  "id": "tx-live-2",
+  "risk_score": 0.848,
+  "risk_label": "high"
+}
+{"id":"tx-live-1","amount":125.5,"international":false,"merchant_risk":0.2}
+{
+  "id": "tx-live-1",
+  "risk_score": 0.213,
+  "risk_label": "low"
+}
+{"id":"tx-live-2","amount":980,"international":true,"merchant_risk":0.8}
+{
+  "id": "tx-live-2",
+  "risk_score": 0.848,
+  "risk_label": "high"
+}
+[?2004h]0;useruser@DESKTOP-S8B80KK: ~[01;32museruser@DESKTOP-S8B80KK[00m:[01;34m~[00m$ websocat -t -H="$BASIC_HEADER" wss://seminar04.dataprosvet.ru/stream/v1/live
+[?2004l{"temperature":65,"vibration":0.12,"rpm":1400}
+{"anomaly_score":0.012,"anomaly":false}
+{"temperature":112,"vibration":0.91,"rpm":2800}
+{"anomaly_score":0.616,"anomaly":true}
+{"temperature":65,"rpm":1400}
+{"error":"invalid_telemetry","detail":"1 validation error for Telemetry\nvibration\n  Field required [type=missing, input_value={'temperature': 65, 'rpm': 1400}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.10/v/missing"}
+{"temperature":70,"vibration":0.15,"rpm":1500}
+{"anomaly_score":0.015,"anomaly":false}
+[?2004h]0;useruser@DESKTOP-S8B80KK: ~[01;32museruser@DESKTOP-S8B80KK[00m:[01;34m~[00m$ curl -i -X POST https://seminar04.dataprosvet.ru/events/v1/jobs \
+[?2004l[?2004h>   -H "$BASIC_HEADER" -H 'Content-Type: application/json' \
+[?2004l[?2004h>   -d '{"records":[{"customer_id":"c-1","monthly_usage":42,"support_tickets":1},{"customer_id":"c-2","monthly_usage":105,"support_tickets":4}]}'
+[?2004lHTTP/2 202 
+[1malt-svc[0m: h3=":443"; ma=2592000
+[1mcontent-type[0m: application/json
+[1mdate[0m: Mon, 28 Sep 2026 09:06:39 GMT
+[1mserver[0m: uvicorn
+[1mvia[0m: 1.1 Caddy
+[1mcontent-length[0m: 68
+
+{"job_id":"593c3ee6-1e8d-4165-acb9-d28fde281bfc","status":"pending"}[?2004h]0;useruser@DESKTOP-S8B80KK: ~[01;32museruser@DESKTOP-S8B80KK[00m:[01;34m~[00m$ JOB_ID='вставьте-job_id-из-ответа'[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K
+[?2004l[?2004h]0;useruser@DESKTOP-S8B80KK: ~[01;32museruser@DESKTOP-S8B80KK[00m:[01;34m~[00m$ JOB_ID=э[K '593c3ee6-1e8d-4165-acb9-d28fde281bfc"[K'
+[?2004l593c3ee6-1e8d-4165-acb9-d28fde281bfc: command not found
+[?2004h]0;useruser@DESKTOP-S8B80KK: ~[01;32museruser@DESKTOP-S8B80KK[00m:[01;34m~[00m$ JOB_ID="593c3ee6-1e8d-4165-acb9-d28fde281bfc"
+[?2004l[?2004h]0;useruser@DESKTOP-S8B80KK: ~[01;32museruser@DESKTOP-S8B80KK[00m:[01;34m~[00m$ curl -i -H "$BASIC_HEADER" "https://seminar04.dataprosvet.ru/events/v1/jobs/$JOB_ID"
+[?2004lHTTP/2 200 
+[1malt-svc[0m: h3=":443"; ma=2592000
+[1mcontent-type[0m: application/json
+[1mdate[0m: Mon, 28 Sep 2026 09:09:59 GMT
+[1mserver[0m: uvicorn
+[1mvia[0m: 1.1 Caddy
+[1mcontent-length[0m: 252
+
+{"job_id":"593c3ee6-1e8d-4165-acb9-d28fde281bfc","status":"completed","results":[{"customer_id":"c-1","normalized_usage":0.042,"risk_score":0.272,"risk_label":"low"},{"customer_id":"c-2","normalized_usage":0.105,"risk_score":0.575,"risk_label":"low"}]}[?2004h]0;useruser@DESKTOP-S8B80KK: ~[01;32museruser@DESKTOP-S8B80KK[00m:[01;34m~[00m$ curl -i -X POST https://seminar04.dataprosvet.ru/events/v1/jobs \
+[?2004l[?2004h>   -H "$BASIC_HEADER" -H 'Content-Type: application/json' -d '{}'
+[?2004lHTTP/2 422 
+[1malt-svc[0m: h3=":443"; ma=2592000
+[1mcontent-type[0m: application/json
+[1mdate[0m: Mon, 28 Sep 2026 09:10:16 GMT
+[1mserver[0m: uvicorn
+[1mvia[0m: 1.1 Caddy
+[1mcontent-length[0m: 90
+
+{"detail":[{"type":"missing","loc":["body","records"],"msg":"Field required","input":{}}]}[?2004h]0;useruser@DESKTOP-S8B80KK: ~[01;32museruser@DESKTOP-S8B80KK[00m:[01;34m~[00m$ учш[K[K[Kexit
+[?2004lexit
+
+Script done on 2026-09-28 12:23:03+03:00 [COMMAND_EXIT_CODE="0"]
