@@ -1,0 +1,440 @@
+Script started on 2026-09-28 21:53:55+03:00 [TERM="xterm-256color" TTY="/dev/pts/0" COLUMNS="120" LINES="30"]
+[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ [7mprintf 'Basic Auth user: '; IFS= read -r BASIC_USER[27m[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Cprintf 'Basic Auth user: '; IFS= read -r BASIC_USER
+[?2004lBasic Auth user: student
+[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ [7mprintf 'Basic Auth password: '; IFS= read -rs BASIC_PASS; printf '\n'[27m[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Cprintf 'Basic Auth password: '; IFS= read -rs BASIC_PASS; printf '\n'
+[?2004lBasic Auth password: 
+[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ [7mBASIC_HEADER="Authorization: Basic $(printf '%s' "$BASIC_USER:$BASIC_PASS" | base64 | tr -d '[27m[7m\[27m[7mr\n')"[27m[A]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ BASIC_HEADER="Authorization: Basic $(printf '%s' "$BASIC_USER:$BASIC_PASS" | base64 | tr -d '\r\n')"
+[?2004l[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ [7munset BASIC_PASS[27munset BASIC_PASS
+[?2004l[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ [7munset BASIC_PASS[27m[1Punset BASIC_PAS[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[7mcurl -i -X POST https://seminar04.dataprosvet.ru/rest/v1/predict \[27m
+[7m  -H "$BASIC_HEADER" -H 'Content-Type: application/json' \[27m
+[7m  -d '{"tenure_months":18,"monthly_spend":240.5,"support_tickets":2}'[27m[A[A[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Ccurl -i -X POST https://seminar04.dataprosvet.ru/rest/v1/predict \
+  -H "$BASIC_HEADER" -H 'Content-Type: application/json' \
+  -d '{"tenure_months":18,"monthly_spend":240.5,"support_tickets":2}'
+[?2004lHTTP/2 401 
+[1malt-svc[0m: h3=":443"; ma=2592000
+[1mserver[0m: Caddy
+[1mwww-authenticate[0m: Basic realm="restricted"
+[1mcontent-length[0m: 0
+[1mdate[0m: Mon, 28 Sep 2026 18:58:32 GMT
+
+[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ [7mprintf 'Basic Auth user: '; IFS= read -r BASIC_USER[27m
+[7mprintf 'Basic Auth password: '; IFS= read -rs BASIC_PASS; printf '\n'[27m
+[7mBASIC_HEADER="Authorization: Basic $(printf '%s' "$BASIC_USER:$BASIC_PASS" | base64 | tr -d '\r\n')"[27m
+[7munset BASIC_PASS[27m[A[A[A]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ printf 'Basic Auth user: '; IFS= read -r BASIC_USER
+printf 'Basic Auth password: '; IFS= read -rs BASIC_PASS; printf '\n'
+BASIC_HEADER="Authorization: Basic $(printf '%s' "$BASIC_USER:$BASIC_PASS" | base64 | tr -d '\r\n')"
+unset BASIC_PASS
+[?2004lBasic Auth user: student
+Basic Auth password: 
+[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ [7mprintf 'Basic Auth user: '; IFS= read -r BASIC_USER[27m
+[7mprintf 'Basic Auth password: '; IFS= read -rs BASIC_PASS; printf '\n'[27m
+[7mBASIC_HEADER="Authorization: Basic $(printf '%s' "$BASIC_USER:$BASIC_PASS" | base64 | tr -d '\r\n')"[27m
+[7munset BASIC_PASS[27m[A[A[A]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ printf 'Basic Auth user: '; IFS= read -r BASIC_USER
+printf 'Basic Auth password: '; IFS= read -rs BASIC_PASS; printf '\n'
+BASIC_HEADER="Authorization: Basic $(printf '%s' "$BASIC_USER:$BASIC_PASS" | base64 | tr -d '\r\n')"
+unset BASIC_PASS
+[?2004lBasic Auth user: ^C
+Basic Auth password: 
+[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ [7mprintf 'Basic Auth user: '; IFS= read -r BASIC_USER[27m
+[7mprintf 'Basic Auth password: '; IFS= read -rs BASIC_PASS; printf '\n'[27m
+[7mBASIC_HEADER="Authorization: Basic $(printf '%s' "$BASIC_USER:$BASIC_PASS" | base64 | tr -d '\r\n')"[27m
+[7munset BASIC_PASS[27m[A[A[A]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ printf 'Basic Auth user: '; IFS= read -r BASIC_USER
+printf 'Basic Auth password: '; IFS= read -rs BASIC_PASS; printf '\n'
+BASIC_HEADER="Authorization: Basic $(printf '%s' "$BASIC_USER:$BASIC_PASS" | base64 | tr -d '\r\n')"
+unset BASIC_PASS
+[?2004lBasic Auth user: student
+Basic Auth password: 
+[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ [7mcurl -i -X POST https://seminar04.dataprosvet.ru/rest/v1/predict \[27m
+[7m  -H "$BASIC_HEADER" -H 'Content-Type: application/json' \[27m
+[7m  -d '{"tenure_months":18,"monthly_spend":240.5,"support_tickets":2}'[27m[A[A[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Ccurl -i -X POST https://seminar04.dataprosvet.ru/rest/v1/predict \
+  -H "$BASIC_HEADER" -H 'Content-Type: application/json' \
+  -d '{"tenure_months":18,"monthly_spend":240.5,"support_tickets":2}'
+[?2004lHTTP/2 200 
+[1malt-svc[0m: h3=":443"; ma=2592000
+[1mcontent-type[0m: application/json
+[1mdate[0m: Mon, 28 Sep 2026 19:03:35 GMT
+[1mserver[0m: uvicorn
+[1mvia[0m: 1.1 Caddy
+[1mcontent-length[0m: 39
+
+{"risk_score":0.85,"risk_label":"high"}[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ [7mcurl -i -X POST https://seminar04.dataprosvet.ru/rest/v1/predict \[27m
+[7m  -H "$BASIC_HEADER" -H 'Content-Type: application/json' \[27m
+[7m  -d '{"tenure_months":18,"support_tickets":2}'[27m[A[Acurl -i -X POST https://seminar04.dataprosvet.ru/rest/v1/predict \
+  -H "$BASIC_HEADER" -H 'Content-Type: application/json' \
+  -d '{"tenure_months":18,"support_tickets":2}'
+[?2004lHTTP/2 422 
+[1malt-svc[0m: h3=":443"; ma=2592000
+[1mcontent-type[0m: application/json
+[1mdate[0m: Mon, 28 Sep 2026 19:04:28 GMT
+[1mserver[0m: uvicorn
+[1mvia[0m: 1.1 Caddy
+[1mcontent-length[0m: 134
+
+{"detail":[{"type":"missing","loc":["body","monthly_spend"],"msg":"Field required","input":{"tenure_months":18,"support_tickets":2}}]}[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ grpcurl -H "[7mBASIC_HEADER[27mBASIC_HEADER" -d
+[?2004lgrpcurl: command not found
+[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ [7mwget https://github.com/fullstorydev/grpcurl/releases/download/v1.9.1/grpcurl_1.9.1_linux_x86[27m[7m_[27m[7m64.tar.gz[27m[A]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ wget https://github.com/fullstorydev/grpcurl/releases/download/v1.9.1/grpcurl_1.9.1_linux_x86_64.tar.gz
+[?2004l--2026-09-28 22:06:59--  https://github.com/fullstorydev/grpcurl/releases/download/v1.9.1/grpcurl_1.9.1_linux_x86_64.tar.gz
+Resolving github.com (github.com)... 140.82.121.4
+Connecting to github.com (github.com)|140.82.121.4|:443... connected.
+HTTP request sent, awaiting response... 302 Found
+Location: https://release-assets.githubusercontent.com/github-production-release-asset/111431261/e1955f84-8656-4d31-9d5a-4a6e1d61db9e?sp=r&sv=2018-11-09&sr=b&spr=https&se=2026-09-28T19%3A50%3A26Z&rscd=attachment%3B+filename%3Dgrpcurl_1.9.1_linux_x86_64.tar.gz&rsct=application%2Foctet-stream&skoid=96c2d410-5711-43a1-aedd-ab1947aa7ab0&sktid=398a6654-997b-47e9-b12b-9515b896b4de&skt=2026-09-28T18%3A50%3A25Z&ske=2026-09-28T19%3A50%3A26Z&sks=b&skv=2018-11-09&sig=qyVarXBlMfUbA5NlSLmn7cRM6BXylOy3p96BXKMY0Wo%3D&jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmVsZWFzZS1hc3NldHMuZ2l0aHVidXNlcmNvbnRlbnQuY29tIiwia2V5Ijoia2V5MSIsImV4cCI6MTc5MDYyMjcwNSwibmJmIjoxNzkwNjIyNDA1LCJwYXRoIjoicmVsZWFzZWFzc2V0cHJvZHVjdGlvbi5ibG9iLmNvcmUud2luZG93cy5uZXQifQ.OMq4yvQ4nM5MeyfyLNBAj0B9PjcEncAVUkQcOlKaMoY&response-content-disposition=attachment%3B%20filename%3Dgrpcurl_1.9.1_linux_x86_64.tar.gz&response-content-type=application%2Foctet-stream [following]
+--2026-09-28 22:07:00--  https://release-assets.githubusercontent.com/github-production-release-asset/111431261/e1955f84-8656-4d31-9d5a-4a6e1d61db9e?sp=r&sv=2018-11-09&sr=b&spr=https&se=2026-09-28T19%3A50%3A26Z&rscd=attachment%3B+filename%3Dgrpcurl_1.9.1_linux_x86_64.tar.gz&rsct=application%2Foctet-stream&skoid=96c2d410-5711-43a1-aedd-ab1947aa7ab0&sktid=398a6654-997b-47e9-b12b-9515b896b4de&skt=2026-09-28T18%3A50%3A25Z&ske=2026-09-28T19%3A50%3A26Z&sks=b&skv=2018-11-09&sig=qyVarXBlMfUbA5NlSLmn7cRM6BXylOy3p96BXKMY0Wo%3D&jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmVsZWFzZS1hc3NldHMuZ2l0aHVidXNlcmNvbnRlbnQuY29tIiwia2V5Ijoia2V5MSIsImV4cCI6MTc5MDYyMjcwNSwibmJmIjoxNzkwNjIyNDA1LCJwYXRoIjoicmVsZWFzZWFzc2V0cHJvZHVjdGlvbi5ibG9iLmNvcmUud2luZG93cy5uZXQifQ.OMq4yvQ4nM5MeyfyLNBAj0B9PjcEncAVUkQcOlKaMoY&response-content-disposition=attachment%3B%20filename%3Dgrpcurl_1.9.1_linux_x86_64.tar.gz&response-content-type=application%2Foctet-stream
+Resolving release-assets.githubusercontent.com (release-assets.githubusercontent.com)... 185.199.110.133, 185.199.111.133, 185.199.108.133, ...
+Connecting to release-assets.githubusercontent.com (release-assets.githubusercontent.com)|185.199.110.133|:443... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 7818878 (7.5M) [application/octet-stream]
+Saving to: ‘grpcurl_1.9.1_linux_x86_64.tar.gz’
+
+grpcurl_1.9.1_linux_x86_64.ta   0%[                                                  ]       0  --.-KB/s               grpcurl_1.9.1_linux_x86_64.ta   3%[>                                                 ] 239.09K  1007KB/s               grpcurl_1.9.1_linux_x86_64.ta  17%[=======>                                          ]   1.30M  2.95MB/s               grpcurl_1.9.1_linux_x86_64.ta  27%[============>                                     ]   2.01M  2.82MB/s               grpcurl_1.9.1_linux_x86_64.ta  34%[================>                                 ]   2.58M  2.81MB/s               grpcurl_1.9.1_linux_x86_64.ta  37%[=================>                                ]   2.80M  2.48MB/s               grpcurl_1.9.1_linux_x86_64.ta  45%[=====================>                            ]   3.36M  2.52MB/s               grpcurl_1.9.1_linux_x86_64.ta  53%[=========================>                        ]   3.98M  2.59MB/s               grpcurl_1.9.1_linux_x86_64.ta  62%[==============================>                   ]   4.69M  2.69MB/s               grpcurl_1.9.1_linux_x86_64.ta  72%[===================================>              ]   5.42M  2.79MB/s               grpcurl_1.9.1_linux_x86_64.ta  83%[========================================>         ]   6.20M  2.89MB/s               grpcurl_1.9.1_linux_x86_64.ta  93%[=============================================>    ]   6.98M  2.97MB/s               grpcurl_1.9.1_linux_x86_64.ta 100%[=================================================>]   7.46M  3.03MB/s    in 2.5s    
+
+2026-09-28 22:07:03 (3.03 MB/s) - ‘grpcurl_1.9.1_linux_x86_64.tar.gz’ saved [7818878/7818878]
+
+[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ [7mtar -xvf grpcurl_1.9.1_linux_x86_64.tar.gz[27m[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Ctar -xvf grpcurl_1.9.1_linux_x86_64.tar.gz
+[?2004lLICENSE
+grpcurl
+[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ [7msudo mv grpcurl /usr/local/bin/[27m[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Csudo mv grpcurl /usr/local/bin/
+[?2004l[sudo: authenticate] Password: * ****    
+[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ grcurl[1@p[C[C[C[C --versiom[Kn
+[?2004lgrpcurl v1.9.1
+[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ [7mgrpcurl -H "BASIC_HEADER" -d[27mgrpcurl -H "BASIC_HEADER" -d
+[?2004lflag needs an argument: -d
+Usage:
+	grpcurl [flags] [address] [list|describe] [symbol]
+
+The 'address' is only optional when used with 'list' or 'describe' and a
+protoset or proto flag is provided.
+
+If 'list' is indicated, the symbol (if present) should be a fully-qualified
+service name. If present, all methods of that service are listed. If not
+present, all exposed services are listed, or all services defined in protosets.
+
+If 'describe' is indicated, the descriptor for the given symbol is shown. The
+symbol should be a fully-qualified service, enum, or message name. If no symbol
+is given then the descriptors for all exposed or known services are shown.
+
+If neither verb is present, the symbol must be a fully-qualified method name in
+'service/method' or 'service.method' format. In this case, the request body will
+be used to invoke the named method. If no body is given but one is required
+(i.e. the method is unary or server-streaming), an empty instance of the
+method's request type will be sent.
+
+The address will typically be in the form "host:port" where host can be an IP
+address or a hostname and port is a numeric port or service name. If an IPv6
+address is given, it must be surrounded by brackets, like "[2001:db8::1]". For
+Unix variants, if a -unix=true flag is present, then the address must be the
+path to the domain socket.
+
+Available flags:
+  -H value
+    	Additional headers in 'name: value' format. May specify more than one
+    	via multiple flags. These headers will also be included in reflection
+    	requests to a server.
+  -allow-unknown-fields
+    	When true, the request contents, if 'json' format is used, allows
+    	unknown fields to be present. They will be ignored when parsing
+    	the request.
+  -alts
+    	Use Application Layer Transport Security (ALTS) when connecting to server.
+  -alts-handshaker-service string
+    	If set, this server will be used to do the ATLS handshaking.
+  -alts-target-service-account value
+    	The full email address of the service account that the server is
+    	expected to be using when ALTS is used. You can specify this option
+    	multiple times to indicate multiple allowed service accounts. If the
+    	server authenticates with a service account that is not one of the
+    	expected accounts, the RPC will not be issued. If no such arguments are
+    	provided, no check will be performed, and the RPC will be issued
+    	regardless of the server's service account.
+  -authority string
+    	The authoritative name of the remote server. This value is passed as the
+    	value of the ":authority" pseudo-header in the HTTP/2 protocol. When TLS
+    	is used, this will also be used as the server name when verifying the
+    	server's certificate. It defaults to the address that is provided in the
+    	positional arguments, or 'localhost' in the case of a unix domain
+    	socket.
+  -cacert string
+    	File containing trusted root certificates for verifying the server.
+    	Ignored if -insecure is specified.
+  -cert string
+    	File containing client certificate (public key), to present to the
+    	server. Not valid with -plaintext option. Must also provide -key option.
+  -connect-timeout float
+    	The maximum time, in seconds, to wait for connection to be established.
+    	Defaults to 10 seconds.
+  -d string
+    	Data for request contents. If the value is '@' then the request contents
+    	are read from stdin. For calls that accept a stream of requests, the
+    	contents should include all such request messages concatenated together
+    	(possibly delimited; see -format).
+  -emit-defaults
+    	Emit default values for JSON-encoded responses.
+  -expand-headers
+    	If set, headers may use '${NAME}' syntax to reference environment
+    	variables. These will be expanded to the actual environment variable
+    	value before sending to the server. For example, if there is an
+    	environment variable defined like FOO=bar, then a header of
+    	'key: ${FOO}' would expand to 'key: bar'. This applies to -H,
+    	-rpc-header, and -reflect-header options. No other expansion/escaping is
+    	performed. This can be used to supply credentials/secrets without having
+    	to put them in command-line arguments.
+  -format string
+    	The format of request data. The allowed values are 'json' or 'text'. For
+    	'json', the input data must be in JSON format. Multiple request values
+    	may be concatenated (messages with a JSON representation other than
+    	object must be separated by whitespace, such as a newline). For 'text',
+    	the input data must be in the protobuf text format, in which case
+    	multiple request values must be separated by the "record separator"
+    	ASCII character: 0x1E. The stream should not end in a record separator.
+    	If it does, it will be interpreted as a final, blank message after the
+    	separator. (default "json")
+  -format-error
+    	When a non-zero status is returned, format the response using the
+    	value set by the -format flag .
+  -help
+    	Print usage instructions and exit.
+  -import-path value
+    	The path to a directory from which proto sources can be imported, for
+    	use with -proto flags. Multiple import paths can be configured by
+    	specifying multiple -import-path flags. Paths will be searched in the
+    	order given. If no import paths are given, all files (including all
+    	imports) must be provided as -proto flags, and grpcurl will attempt to
+    	resolve all import statements from the set of file names given.
+  -insecure
+    	Skip server certificate and domain verification. (NOT SECURE!) Not
+    	valid with -plaintext option.
+  -keepalive-time float
+    	If present, the maximum idle time in seconds, after which a keepalive
+    	probe is sent. If the connection remains idle and no keepalive response
+    	is received for this same period then the connection is closed and the
+    	operation fails.
+  -key string
+    	File containing client private key, to present to the server. Not valid
+    	with -plaintext option. Must also provide -cert option.
+  -max-msg-sz int
+    	The maximum encoded size of a response message, in bytes, that grpcurl
+    	will accept. If not specified, defaults to 4,194,304 (4 megabytes).
+  -max-time float
+    	The maximum total time the operation can take, in seconds. This sets a
+    	timeout on the gRPC context, allowing both client and server to give up
+    	after the deadline has past. This is useful for preventing batch jobs
+    	that use grpcurl from hanging due to slow or bad network links or due
+    	to incorrect stream method usage.
+  -msg-template
+    	When describing messages, show a template of input data.
+  -plaintext
+    	Use plain-text HTTP/2 when connecting to server (no TLS).
+  -proto value
+    	The name of a proto source file. Source files given will be used to
+    	determine the RPC schema instead of querying for it from the remote
+    	server via the gRPC reflection API. When set: the 'list' action lists
+    	the services found in the given files and their imports (vs. those
+    	exposed by the remote server), and the 'describe' action describes
+    	symbols found in the given files. May specify more than one via multiple
+    	-proto flags. Imports will be resolved using the given -import-path
+    	flags. Multiple proto files can be specified by specifying multiple
+    	-proto flags. It is an error to use both -protoset and -proto flags.
+  -protoset value
+    	The name of a file containing an encoded FileDescriptorSet. This file's
+    	contents will be used to determine the RPC schema instead of querying
+    	for it from the remote server via the gRPC reflection API. When set: the
+    	'list' action lists the services found in the given descriptors (vs.
+    	those exposed by the remote server), and the 'describe' action describes
+    	symbols found in the given descriptors. May specify more than one via
+    	multiple -protoset flags. It is an error to use both -protoset and
+    	-proto flags.
+  -protoset-out string
+    	The name of a file to be written that will contain a FileDescriptorSet
+    	proto. With the list and describe verbs, the listed or described
+    	elements and their transitive dependencies will be written to the named
+    	file if this option is given. When invoking an RPC and this option is
+    	given, the method being invoked and its transitive dependencies will be
+    	included in the output file.
+  -reflect-header value
+    	Additional reflection headers in 'name: value' format. May specify more
+    	than one via multiple flags. These headers will *only* be used during
+    	reflection requests and will be excluded when invoking the requested RPC
+    	method.
+  -rpc-header value
+    	Additional RPC headers in 'name: value' format. May specify more than
+    	one via multiple flags. These headers will *only* be used when invoking
+    	the requested RPC method. They are excluded from reflection requests.
+  -servername string
+    	Override server name when validating TLS certificate. This flag is
+    	ignored if -plaintext or -insecure is used.
+    	NOTE: Prefer -authority. This flag may be removed in the future. It is
+    	an error to use both -authority and -servername (though this will be
+    	permitted if they are both set to the same value, to increase backwards
+    	compatibility with earlier releases that allowed both to be set).
+  -unix
+    	Indicates that the server address is the path to a Unix domain socket.
+  -use-reflection
+    	When true, server reflection will be used to determine the RPC schema.
+    	Defaults to true unless a -proto or -protoset option is provided. If
+    	-use-reflection is used in combination with a -proto or -protoset flag,
+    	the provided descriptor sources will be used in addition to server
+    	reflection to resolve messages and extensions.
+  -user-agent string
+    	If set, the specified value will be added to the User-Agent header set
+    	by the grpc-go library.
+  -v	Enable verbose output.
+  -version
+    	Print version.
+  -vv
+    	Enable very verbose output (includes timing data).
+[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ [7mgrpcurl -H "$BASIC_HEADER" seminar04.dataprosvet.ru:443 describe seminar04.v1.TransactionInfe[27m[7mr[27m[7mence[27m[A]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ grpcurl -H "$BASIC_HEADER" seminar04.dataprosvet.ru:443 describe seminar04.v1.TransactionInference
+[?2004lseminar04.v1.TransactionInference is a service:
+service TransactionInference {
+  rpc AggregateTransactions ( stream .seminar04.v1.Transaction ) returns ( .seminar04.v1.TransactionScoreSummary );
+  rpc PredictBatch ( .seminar04.v1.PredictBatchRequest ) returns ( .seminar04.v1.PredictBatchResponse );
+  rpc PredictBatchStream ( .seminar04.v1.PredictBatchRequest ) returns ( stream .seminar04.v1.TransactionPrediction );
+  rpc PredictLive ( stream .seminar04.v1.Transaction ) returns ( stream .seminar04.v1.TransactionPrediction );
+}
+[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ [7mgrpcurl -H "$BASIC_HEADER" -d '{"transactions":[{"id":"tx-1","amount":125.5,"international":f[27m[7ma[27m[7mlse,"merchant_risk":0.2},{"id":"tx-2","amount":980,"international":true,"merchant_risk":0.8}]}' \ [27m
+[7m  seminar04.dataprosvet.ru:443 seminar04.v1.TransactionInference/PredictBatch[27m[A[A[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Cgrpcurl -H "$BASIC_HEADER" -d '{"transactions":[{"id":"tx-1","amount":125.5,"international":false,"merchant_risk":0.2},{"id":"tx-2","amount":980,"international":true,"merchant_risk":0.8}]}' \
+  seminar04.dataprosvet.ru:443 seminar04.v1.TransactionInference/PredictBatch
+[?2004l{
+  "predictions": [
+    {
+      "id": "tx-1",
+      "risk_score": 0.213,
+      "risk_label": "low"
+    },
+    {
+      "id": "tx-2",
+      "risk_score": 0.848,
+      "risk_label": "high"
+    }
+  ]
+}
+[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ [7mgrpcurl -H "$BASIC_HEADER" -d '{"transactions":[{"amount":125.5,"international":false,"mercha[27m[7mn[27m[7mt_risk":0.2}]}' \ [27m
+[7m  seminar04.dataprosvet.ru:443 seminar04.v1.TransactionInference/PredictBatch[27m[A[A[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Cgrpcurl -H "$BASIC_HEADER" -d '{"transactions":[{"amount":125.5,"international":false,"merchant_risk":0.2}]}' \
+  seminar04.dataprosvet.ru:443 seminar04.v1.TransactionInference/PredictBatch
+[?2004lERROR:
+  Code: InvalidArgument
+  Message: transaction id must not be empty
+[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ [7mgrpcurl -H "$BASIC_HEADER" -d '{"transactions":[{"id":"tx-1","amount":125.5,"international":f[27m[7ma[27m[7mlse,"merchant_risk":0.2},{"id":"tx-2","amount":980,"international":true,"merchant_risk":0.8}]}' \ [27m
+[7m  seminar04.dataprosvet.ru:443 seminar04.v1.TransactionInference/PredictBatchStream[27m[A[A[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Cgrpcurl -H "$BASIC_HEADER" -d '{"transactions":[{"id":"tx-1","amount":125.5,"international":false,"merchant_risk":0.2},{"id":"tx-2","amount":980,"international":true,"merchant_risk":0.8}]}' \
+  seminar04.dataprosvet.ru:443 seminar04.v1.TransactionInference/PredictBatchStream
+[?2004l{
+  "id": "tx-1",
+  "risk_score": 0.213,
+  "risk_label": "low"
+}
+{
+  "id": "tx-2",
+  "risk_score": 0.848,
+  "risk_label": "high"
+}
+[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ [7mprintf '%s\n' \[27m
+[7m  '{"id":"tx-1","amount":125.5,"international":false,"merchant_risk":0.2}' \[27m
+[7m  '{"id":"tx-2","amount":980,"international":true,"merchant_risk":0.8}' |[27m
+[7m  grpcurl -H "$BASIC_HEADER" -d @ seminar04.dataprosvet.ru:443 seminar04.v1.TransactionInference/AggregateTransactions[27m[A[A[A[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Cprintf '%s\n' \
+  '{"id":"tx-1","amount":125.5,"international":false,"merchant_risk":0.2}' \
+  '{"id":"tx-2","amount":980,"international":true,"merchant_risk":0.8}' |
+  grpcurl -H "$BASIC_HEADER" -d @ seminar04.dataprosvet.ru:443 seminar04.v1.TransactionInference/AggregateTransactions
+[?2004l{
+  "transaction_count": 2,
+  "average_risk": 0.53,
+  "high_risk_count": 1
+}
+[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ [7mgrpcurl -H "$BASIC_HEADER" -d @ seminar04.dataprosvet.ru:443 seminar04.v1.TransactionInferenc[27m[7me[27m[7m/PredictLive[27m[A]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ grpcurl -H "$BASIC_HEADER" -d @ seminar04.dataprosvet.ru:443 seminar04.v1.TransactionInference/PredictLive
+[?2004l{"id":"tx-live-1","amount":125.5,"international":false,"merchant_risk":0.2}
+{
+  "id": "tx-live-1",
+  "risk_score": 0.213,
+  "risk_label": "low"
+}
+{"id":"tx-live-2","amount":980,"international":true,"merchant_risk":0.8}
+{
+  "id": "tx-live-2",
+  "risk_score": 0.848,
+  "risk_label": "high"
+}
+[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ [7mwebsocat -t -H="$BASIC_HEADER" wss://seminar04.dataprosvet.ru/stream/v1/live[27m[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Cwebsocat -t -H="$BASIC_HEADER" wss://seminar04.dataprosvet.ru/stream/v1/live
+[?2004lwebsocat: command not found
+[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ sudo apt install -y [7mwebsocat[27mwebsocat
+[?2004lReading package lists... 0%Reading package lists... 0%Reading package lists... 0%Reading package lists... 27%Reading package lists... 27%Reading package lists... 39%Reading package lists... 39%Reading package lists... 43%Reading package lists... 43%Reading package lists... 44%Reading package lists... 44%Reading package lists... 55%Reading package lists... 55%Reading package lists... 60%Reading package lists... 60%Reading package lists... 68%Reading package lists... 68%Reading package lists... 73%Reading package lists... 73%Reading package lists... 81%Reading package lists... 81%Reading package lists... 85%Reading package lists... 85%Reading package lists... 93%Reading package lists... 93%Reading package lists... 97%Reading package lists... 97%                             Building dependency tree... 0%Building dependency tree... 0%Building dependency tree... 50%Building dependency tree... 50%                                Reading state information... 0%Reading state information... 0%                                [1;31mError: [0m[1mUnable to locate package websocat[0m
+[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ [7mwget https://github.com/vi/websocat/releases/download/v1.13.0/websocat.x86_64-unknown-linux-m[27m[7mu[27m[7msl [27m
+[7msudo mv websocat.x86_64-unknown-linux-musl /usr/local/bin/websocat[27m
+[7msudo chmod +x /usr/local/bin/websocat[27m[A[A[Awget https://github.com/vi/websocat/releases/download/v1.13.0/websocat.x86_64-unknown-linux-musl
+sudo mv websocat.x86_64-unknown-linux-musl /usr/local/bin/websocat
+sudo chmod +x /usr/local/bin/websocat
+[?2004l--2026-09-28 22:13:36--  https://github.com/vi/websocat/releases/download/v1.13.0/websocat.x86_64-unknown-linux-musl
+Resolving github.com (github.com)... 140.82.121.3
+Connecting to github.com (github.com)|140.82.121.3|:443... connected.
+HTTP request sent, awaiting response... 302 Found
+Location: https://release-assets.githubusercontent.com/github-production-release-asset/74579985/45ebb2e6-e3e5-45f1-abbb-5e11d174303e?sp=r&sv=2018-11-09&sr=b&spr=https&se=2026-09-28T20%3A00%3A50Z&rscd=attachment%3B+filename%3Dwebsocat.x86_64-unknown-linux-musl&rsct=application%2Foctet-stream&skoid=96c2d410-5711-43a1-aedd-ab1947aa7ab0&sktid=398a6654-997b-47e9-b12b-9515b896b4de&skt=2026-09-28T19%3A00%3A13Z&ske=2026-09-28T20%3A00%3A50Z&sks=b&skv=2018-11-09&sig=zZrY%2BoXhr%2BjzbJEbaMNgZg%2BLW0nAoWjVr7%2FYc9Obcdc%3D&jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmVsZWFzZS1hc3NldHMuZ2l0aHVidXNlcmNvbnRlbnQuY29tIiwia2V5Ijoia2V5MSIsImV4cCI6MTc5MDYyMzEwMiwibmJmIjoxNzkwNjIyODAyLCJwYXRoIjoicmVsZWFzZWFzc2V0cHJvZHVjdGlvbi5ibG9iLmNvcmUud2luZG93cy5uZXQifQ.Re2w3auhe3vRcpZcsZl0bhgIwIMq39G-LlBV74ZTkVA&response-content-disposition=attachment%3B%20filename%3Dwebsocat.x86_64-unknown-linux-musl&response-content-type=application%2Foctet-stream [following]
+--2026-09-28 22:13:37--  https://release-assets.githubusercontent.com/github-production-release-asset/74579985/45ebb2e6-e3e5-45f1-abbb-5e11d174303e?sp=r&sv=2018-11-09&sr=b&spr=https&se=2026-09-28T20%3A00%3A50Z&rscd=attachment%3B+filename%3Dwebsocat.x86_64-unknown-linux-musl&rsct=application%2Foctet-stream&skoid=96c2d410-5711-43a1-aedd-ab1947aa7ab0&sktid=398a6654-997b-47e9-b12b-9515b896b4de&skt=2026-09-28T19%3A00%3A13Z&ske=2026-09-28T20%3A00%3A50Z&sks=b&skv=2018-11-09&sig=zZrY%2BoXhr%2BjzbJEbaMNgZg%2BLW0nAoWjVr7%2FYc9Obcdc%3D&jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmVsZWFzZS1hc3NldHMuZ2l0aHVidXNlcmNvbnRlbnQuY29tIiwia2V5Ijoia2V5MSIsImV4cCI6MTc5MDYyMzEwMiwibmJmIjoxNzkwNjIyODAyLCJwYXRoIjoicmVsZWFzZWFzc2V0cHJvZHVjdGlvbi5ibG9iLmNvcmUud2luZG93cy5uZXQifQ.Re2w3auhe3vRcpZcsZl0bhgIwIMq39G-LlBV74ZTkVA&response-content-disposition=attachment%3B%20filename%3Dwebsocat.x86_64-unknown-linux-musl&response-content-type=application%2Foctet-stream
+Resolving release-assets.githubusercontent.com (release-assets.githubusercontent.com)... 185.199.110.133, 185.199.109.133, 185.199.111.133, ...
+Connecting to release-assets.githubusercontent.com (release-assets.githubusercontent.com)|185.199.110.133|:443... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 7245864 (6.9M) [application/octet-stream]
+Saving to: ‘websocat.x86_64-unknown-linux-musl’
+
+websocat.x86_64-unknown-linux   0%[                                                  ]       0  --.-KB/s               websocat.x86_64-unknown-linux   2%[>                                                 ] 175.09K   444KB/s               websocat.x86_64-unknown-linux   6%[==>                                               ] 447.96K   725KB/s               websocat.x86_64-unknown-linux   9%[===>                                              ] 639.96K   728KB/s               websocat.x86_64-unknown-linux  13%[=====>                                            ] 959.96K   886KB/s               websocat.x86_64-unknown-linux  19%[========>                                         ]   1.34M  1.02MB/s               websocat.x86_64-unknown-linux  21%[=========>                                        ]   1.47M   989KB/s               websocat.x86_64-unknown-linux  24%[===========>                                      ]   1.69M  1002KB/s               websocat.x86_64-unknown-linux  32%[===============>                                  ]   2.22M  1.15MB/s               websocat.x86_64-unknown-linux  40%[===================>                              ]   2.80M  1.31MB/s               websocat.x86_64-unknown-linux  47%[======================>                           ]   3.28M  1.41MB/s               websocat.x86_64-unknown-linux  55%[==========================>                       ]   3.84M  1.51MB/s               websocat.x86_64-unknown-linux  63%[==============================>                   ]   4.39M  1.60MB/s               websocat.x86_64-unknown-linux  72%[===================================>              ]   4.98M  1.70MB/s               websocat.x86_64-unknown-linux  81%[=======================================>          ]   5.62M  1.78MB/s    eta 1s     websocat.x86_64-unknown-linux  91%[============================================>     ]   6.31M  1.87MB/s    eta 1s     websocat.x86_64-unknown-linux 100%[=================================================>]   6.91M  2.01MB/s    eta 0s     websocat.x86_64-unknown-linux 100%[=================================================>]   6.91M  2.01MB/s    in 3.6s    
+
+2026-09-28 22:13:41 (1.93 MB/s) - ‘websocat.x86_64-unknown-linux-musl’ saved [7245864/7245864]
+
+[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ we[K[Kwebsocat --version
+[?2004lwebsocat 1.13.0
+[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ [7mwebsocat -t -H="$BASIC_HEADER" wss://seminar04.dataprosvet.ru/stream/v1/live[27m[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Cwebsocat -t -H="$BASIC_HEADER" wss://seminar04.dataprosvet.ru/stream/v1/live
+[?2004l{"temperature":65,"vibration":0.12,"rpm":1400}
+{"anomaly_score":0.012,"anomaly":false}
+{"temperature":112,"vibration":0.91,"rpm":2800}
+{"anomaly_score":0.616,"anomaly":true}
+{"temperature":65,"rpm":1400}
+{"error":"invalid_telemetry","detail":"1 validation error for Telemetry\nvibration\n  Field required [type=missing, input_value={'temperature': 65, 'rpm': 1400}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.10/v/missing"}
+[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ [7mcurl -i -X POST https://seminar04.dataprosvet.ru/events/v1/jobs \[27m
+[7m  -H "$BASIC_HEADER" -H 'Content-Type: application/json' \[27m
+[7m  -d '{"records":[{"customer_id":"c-1","monthly_usage":42,"support_tickets":1},{"customer_id":"c-2","monthly_usage":105,[27m[7m"[27m[7msupport_tickets":4}]}'[27m[A[A[A]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ curl -i -X POST https://seminar04.dataprosvet.ru/events/v1/jobs \
+  -H "$BASIC_HEADER" -H 'Content-Type: application/json' \
+  -d '{"records":[{"customer_id":"c-1","monthly_usage":42,"support_tickets":1},{"customer_id":"c-2","monthly_usage":105,"support_tickets":4}]}'
+[?2004lHTTP/2 202 
+[1malt-svc[0m: h3=":443"; ma=2592000
+[1mcontent-type[0m: application/json
+[1mdate[0m: Mon, 28 Sep 2026 19:15:27 GMT
+[1mserver[0m: uvicorn
+[1mvia[0m: 1.1 Caddy
+[1mcontent-length[0m: 68
+
+{"job_id":"a889b7e3-f729-45a6-8f46-a66315907b0d","status":"pending"}[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ [7mJOB_ID='вставьте-job_id-из-ответа'[27m
+[7mcurl -i -H "$BASIC_HEADER" "https://seminar04.dataprosvet.ru/events/v1/jobs/$JOB_ID"[27m[A[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[CJOB_ID='вставьте-job_id-из-ответа'
+curl -i -H "$BASIC_HEADER" "https://seminar04.dataprosvet.ru/events/v1/jobs/$JOB_ID"[A[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C                                  
+[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[A[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C 
+[?2004l[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ [7mcurl -i -X POST https://seminar04.dataprosvet.ru/events/v1/jobs \[27m
+[7m  -H "$BASIC_HEADER" -H 'Content-Type: application/json' \[27m
+[7m  -d '{"records":[{"customer_id":"c-1","monthly_usage":42,"support_tickets":1},{"customer_id":"c-2","monthly_usage":105,[27m[7m"[27m[7msupport_tickets":4}]}'[27m[A[A[A]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ curl -i -X POST https://seminar04.dataprosvet.ru/events/v1/jobs \
+  -H "$BASIC_HEADER" -H 'Content-Type: application/json' \
+  -d '{"records":[{"customer_id":"c-1","monthly_usage":42,"support_tickets":1},{"customer_id":"c-2","monthly_usage":105,"support_tickets":4}]}'
+[?2004lHTTP/2 202 
+[1malt-svc[0m: h3=":443"; ma=2592000
+[1mcontent-type[0m: application/json
+[1mdate[0m: Mon, 28 Sep 2026 19:17:02 GMT
+[1mserver[0m: uvicorn
+[1mvia[0m: 1.1 Caddy
+[1mcontent-length[0m: 68
+
+{"job_id":"71ec54c9-f964-4de6-9b8a-34ae174e8081","status":"pending"}[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ [7mJOB_ID='вставьте-job_id-[27mJOB_ID='вставьте-job_id-[7m71ec54c9-f964-4de6-9b8a-34ae174e8081[27m71ec54c9-f964-4de6-9b8a-34ae174e8081' [7mcurl -i -H "$BASIC_HEADER" "htt[27m[7mp[27m[7ms://seminar04.dataprosvet.ru/events/v1/jobs/$JOB_ID"[27m[A[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Ccurl -i -H "$BASIC_HEADER" "https://seminar04.dataprosvet.ru/events/v1/jobs/$JOB_ID"
+[?2004lHTTP/2 307 
+[1malt-svc[0m: h3=":443"; ma=2592000
+[1mdate[0m: Mon, 28 Sep 2026 19:17:34 GMT
+[1mlocation[0m: ]8;;http://seminar04.dataprosvet.ru/v1/jobs\http://seminar04.dataprosvet.ru/v1/jobs
+]8;;\[1mserver[0m: uvicorn
+[1mvia[0m: 1.1 Caddy
+[1mcontent-length[0m: 0
+
+[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ [7mcurl -i -X POST https://seminar04.dataprosvet.ru/events/v1/jobs \[27m
+[7m  -H "$BASIC_HEADER" -H 'Content-Type: application/json' -d '{}'[27m[A[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Ccurl -i -X POST https://seminar04.dataprosvet.ru/events/v1/jobs \
+  -H "$BASIC_HEADER" -H 'Content-Type: application/json' -d '{}'
+[?2004lHTTP/2 422 
+[1malt-svc[0m: h3=":443"; ma=2592000
+[1mcontent-type[0m: application/json
+[1mdate[0m: Mon, 28 Sep 2026 19:18:01 GMT
+[1mserver[0m: uvicorn
+[1mvia[0m: 1.1 Caddy
+[1mcontent-length[0m: 90
+
+{"detail":[{"type":"missing","loc":["body","records"],"msg":"Field required","input":{}}]}[?2004h]0;student@LAPTOP-QAD6U6CM: ~[01;32mstudent@LAPTOP-QAD6U6CM[00m:[01;34m~[00m$ exit
+[?2004lexit
+
+Script done on 2026-09-28 22:18:34+03:00 [COMMAND_EXIT_CODE="0"]
