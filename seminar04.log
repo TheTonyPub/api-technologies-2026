@@ -1,0 +1,254 @@
+dashalol@DESKTOP-A6J0572:~$ printf 'Basic Auth user: '; IFS= read -r BASIC_USER
+printf 'Basic Auth password: '; IFS= read -rs BASIC_PASS; printf '\n'
+BASIC_HEADER="Authorization: Basic $(printf '%s' "$BASIC_USER:$BASIC_PASS" | base64 | tr -d '\r\n')"
+unset BASIC_PASS
+Basic Auth user: student
+Basic Auth password:
+dashalol@DESKTOP-A6J0572:~$ printf 'Basic Auth user: '; IFS= read -r BASIC_USER
+printf 'Basic Auth password: '; IFS= read -rs BASIC_PASS; printf '\n'
+BASIC_HEADER="Authorization: Basic $(printf '%s' "$BASIC_USER:$BASIC_PASS" | base64 | tr -d '\r\n')"
+unset BASIC_PASS
+Basic Auth user: student
+Basic Auth password:
+dashalol@DESKTOP-A6J0572:~$ script -q seminar04.log
+dashalol@DESKTOP-A6J0572:~$ exit
+exit
+dashalol@DESKTOP-A6J0572:~$ BASIC_HEADER="Authorization: Basic $(echo -n 'student:awesome-api-tech' | base64)"
+dashalol@DESKTOP-A6J0572:~$ curl -i -X POST https://seminar04.dataprosvet.ru/rest/v1/predict \
+  -H "$BASIC_HEADER" -H 'Content-Type: application/json' \
+  -d '{"tenure_months":18,"monthly_spend":240.5,"support_tickets":2}'
+HTTP/2 200
+alt-svc: h3=":443"; ma=2592000
+content-type: application/json
+date: Mon, 28 Sep 2026 14:59:25 GMT
+server: uvicorn
+via: 1.1 Caddy
+content-length: 39
+
+{"risk_score":0.85,"risk_label":"high"}dashalol@DESKTOP-A6J0572:~$ curl -i -X POST https://seminar04.dataprosvet.ru/rest/v1/predict \               curl -i -X POST https://seminar04.dataprosvet.ru/rest/v1/predict \
+  -H "$BASIC_HEADER" -H 'Content-Type: application/json' \
+  -d '{"tenure_months":18,"support_tickets":2}'
+HTTP/2 422
+alt-svc: h3=":443"; ma=2592000
+content-type: application/json
+date: Mon, 28 Sep 2026 15:00:00 GMT
+server: uvicorn
+via: 1.1 Caddy
+content-length: 134
+
+{"detail":[{"type":"missing","loc":["body","monthly_spend"],"msg":"Field required","input":{"tenure_months":18,"support_dashalol@DESKTOP-A6J0572:~$ grpcurl -H "$BASIC_HEADER" seminar04.dataprosvet.ru:443 list
+grpcurl: command not found
+dashalol@DESKTOP-A6J0572:~$ sudo apt update
+sudo apt install -y grpcurl
+[sudo: authenticate] Password:
+sudo: Authentication failed, try again.
+[sudo: authenticate] Password:
+sudo: Authentication failed, try again.
+[sudo: authenticate] Password:
+Hit:1 http://archive.ubuntu.com/ubuntu resolute InRelease
+Hit:2 http://archive.ubuntu.com/ubuntu resolute-updates InRelease
+Hit:3 http://archive.ubuntu.com/ubuntu resolute-backports InRelease
+Hit:4 http://security.ubuntu.com/ubuntu resolute-security InRelease
+11 packages can be upgraded. Run 'apt list --upgradable' to see them.
+Error: Unable to locate package grpcurl
+dashalol@DESKTOP-A6J0572:~$ curl -sSL https://github.com/fullstorydev/grpcurl/releases/download/v1.9.1/grpcurl_1.9.1_linux_x86_64.tar.gz | tar -xz
+dashalol@DESKTOP-A6J0572:~$ sudo mv grpcurl /usr/local/bin/
+dashalol@DESKTOP-A6J0572:~$ grpcurl -version
+grpcurl v1.9.1
+dashalol@DESKTOP-A6J0572:~$ grpcurl -H "$BASIC_HEADER" seminar04.dataprosvet.ru:443 list
+grpc.reflection.v1alpha.ServerReflection
+seminar04.v1.TransactionInference
+dashalol@DESKTOP-A6J0572:~$ grpcurl -H "$BASIC_HEADER" seminar04.dataprosvet.ru:443 describe seminar04.v1.TransactionInference
+seminar04.v1.TransactionInference is a service:
+service TransactionInference {
+  rpc AggregateTransactions ( stream .seminar04.v1.Transaction ) returns ( .seminar04.v1.TransactionScoreSummary );
+  rpc PredictBatch ( .seminar04.v1.PredictBatchRequest ) returns ( .seminar04.v1.PredictBatchResponse );
+  rpc PredictBatchStream ( .seminar04.v1.PredictBatchRequest ) returns ( stream .seminar04.v1.TransactionPrediction );
+  rpc PredictLive ( stream .seminar04.v1.Transaction ) returns ( stream .seminar04.v1.TransactionPrediction );
+}
+dashalol@DESKTOP-A6J0572:~$ grpcurl -H "$BASIC_HEADER" -d '{"transactions":[{"id":"tx-1","amount":125.5,"international":false,"merchant_risk":0.2},{"id":"tx-2","amount":980,"international":true,"merchant_risk":0.8}]}' \
+  seminar04.dataprosvet.ru:443 seminar04.v1.TransactionInference/PredictBatch
+{
+  "predictions": [
+    {
+      "id": "tx-1",
+      "risk_score": 0.213,
+      "risk_label": "low"
+    },
+    {
+      "id": "tx-2",
+      "risk_score": 0.848,
+      "risk_label": "high"
+    }
+  ]
+}
+dashalol@DESKTOP-A6J0572:~$ grpcurl -H "$BASIC_HEADER" -d '{"transactions":[{"amount":125.5,"international":false,"merchant_risk":0.2}]}' \
+  seminar04.dataprosvet.ru:443 seminar04.v1.TransactionInference/PredictBatch
+ERROR:
+  Code: InvalidArgument
+  Message: transaction id must not be empty
+dashalol@DESKTOP-A6J0572:~$ grpcurl -H "$BASIC_HEADER" -d '{"transactions":[{"id":"tx-1","amount":125.5,"international":false,"merchant_risk":0.2},{"id":"tx-2","amount":980,"international":true,"merchant_risk":0.8}]}' \
+  seminar04.dataprosvet.ru:443 seminar04.v1.TransactionInference/PredictBatchStream
+{
+  "id": "tx-1",
+  "risk_score": 0.213,
+  "risk_label": "low"
+}
+{
+  "id": "tx-2",
+  "risk_score": 0.848,
+  "risk_label": "high"
+}
+dashalol@DESKTOP-A6J0572:~$ printf '%s\n' \
+  '{"id":"tx-1","amount":125.5,"international":false,"merchant_risk":0.2}' \
+  '{"id":"tx-2","amount":980,"international":true,"merchant_risk":0.8}' |
+  grpcurl -H "$BASIC_HEADER" -d @ seminar04.dataprosvet.ru:443 seminar04.v1.TransactionInference/AggregateTransactions
+{
+  "transaction_count": 2,
+  "average_risk": 0.53,
+  "high_risk_count": 1
+}
+dashalol@DESKTOP-A6J0572:~$ grpcurl -H "$BASIC_HEADER" -d @ seminar04.dataprosvet.ru:443 seminar04.v1.TransactionInference/PredictLive
+
+{"id":"tx-live-1","amount":125.5,"international":false,"merchant_risk":0.2}
+{
+  "id": "tx-live-1",
+  "risk_score": 0.213,
+  "risk_label": "low"
+}
+
+{"id":"tx-live-2","amount":980,"international":true,"merchant_risk":0.8}
+{
+  "id": "tx-live-2",
+  "risk_score": 0.848,
+  "risk_label": "high"
+}
+dashalol@DESKTOP-A6J0572:~$ websocat --version
+websocat: command not found
+dashalol@DESKTOP-A6J0572:~$ sudo apt update && sudo apt install -y websocat
+[sudo: authenticate] Password:
+Hit:1 http://archive.ubuntu.com/ubuntu resolute InRelease
+Hit:2 http://security.ubuntu.com/ubuntu resolute-security InRelease
+Hit:3 http://archive.ubuntu.com/ubuntu resolute-updates InRelease
+Hit:4 http://archive.ubuntu.com/ubuntu resolute-backports InRelease
+11 packages can be upgraded. Run 'apt list --upgradable' to see them.
+Error: Unable to locate package websocat
+dashalol@DESKTOP-A6J0572:~$ websocat --version
+websocat: command not found
+dashalol@DESKTOP-A6J0572:~$ curl -sSL https://github.com/vi/websocat/releases/download/v1.13.0/websocat.x86_64-unknown-linux-musl -o websocat
+dashalol@DESKTOP-A6J0572:~$ chmod +x websocat
+dashalol@DESKTOP-A6J0572:~$ sudo mv websocat /usr/local/bin/
+dashalol@DESKTOP-A6J0572:~$ websocat --version
+websocat 1.13.0
+dashalol@DESKTOP-A6J0572:~$ websocat -t -H="$BASIC_HEADER" wss://seminar04.dataprosvet.ru/stream/v1/live
+{"temperature":65,"vibration":0.12,"rpm":1400}
+[ERROR websocat::ws_peer] Invalid UTF-8 in a text WebSocket message. Sending lossy data. May be caused by unlucky buffer splits.
+{"error":"invalid_telemetry","detail":"Expecting value: line 1 column 1 (char 0)"}
+dashalol@DESKTOP-A6J0572:~$ grpcurl -H "$BASIC_HEADER" -d @ seminar04.dataprosvet.ru:443 seminar04.v1.TransactionInference/PredictLive
+
+{"id":"tx-live-1","amount":125.5,"international":false,"merchant_risk":0.2}
+{
+  "id": "tx-live-1",
+  "risk_score": 0.213,
+  "risk_label": "low"
+}
+{"id":"tx-live-2","amount":980,"international":true,"merchant_risk":0.8}
+{
+  "id": "tx-live-2",
+  "risk_score": 0.848,
+  "risk_label": "high"
+}
+{"id":"tx-live-3","amount":50.0,"international":false,"merchant_risk":0.3}
+{
+  "id": "tx-live-3",
+  "risk_score": 0.255,
+  "risk_label": "low"
+}
+{"id":"tx-live-4","amount":3467.0,"international":true,"merchant_risk":0.6}
+{
+  "id": "tx-live-4",
+  "risk_score": 0.997,
+  "risk_label": "high"
+}
+{"id":"tx-live-5","amount":12.0,"international":true,"merchant_risk":0.1}
+{
+  "id": "tx-live-5",
+  "risk_score": 0.401,
+  "risk_label": "low"
+}
+{"id":"tx-live-6","amount":756.0,"international":true,"merchant_risk":0.4}
+{
+  "id": "tx-live-6",
+  "risk_score": 0.626,
+  "risk_label": "high"
+}
+dashalol@DESKTOP-A6J0572:~$ websocat -t -H="$BASIC_HEADER" wss://seminar04.dataprosvet.ru/stream/v1/live
+{"temperature":65,"vibration":0.12,"rpm":1400}
+{"anomaly_score":0.012,"anomaly":false}
+
+{"error":"invalid_telemetry","detail":"Expecting value: line 2 column 1 (char 1)"}
+{"temperature":112,"vibration":0.91,"rpm":2800}
+{"anomaly_score":0.616,"anomaly":true}
+{"temperature":24,"vibration":0.24,"rpm":2400}
+{"anomaly_score":0.024,"anomaly":false}
+{"temperature":345,"vibration":0.99,"rpm":1000}
+{"error":"invalid_telemetry","detail":"1 validation error for Telemetry\ntemperature\n  Input should be less than or equal to 200 [type=less_than_equal, input_value=345, input_type=int]\n    For further information visit https://errors.pydantic.dev/2.10/v/less_than_equal"}
+{"temperature":199,"vibration":0.99,"rpm":1000}
+{"anomaly_score":1.0,"anomaly":true}
+{"temperature":65,"rpm":1400}
+{"error":"invalid_telemetry","detail":"1 validation error for Telemetry\nvibration\n  Field required [type=missing, input_value={'temperature': 65, 'rpm': 1400}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.10/v/missing"}
+{"temperature":123,"vibration":0.12,"rpm":1234}
+{"anomaly_score":0.674,"anomaly":true}
+dashalol@DESKTOP-A6J0572:~$ curl -i -X POST https://seminar04.dataprosvet.ru/events/v1/jobs \
+  -H "$BASIC_HEADER" -H 'Content-Type: application/json' \
+  -d '{"records":[{"customer_id":"c-1","monthly_usage":42,"support_tickets":1},{"customer_id":"c-2","monthly_usage":105,"support_tickets":4}]}'
+HTTP/2 202
+alt-svc: h3=":443"; ma=2592000
+content-type: application/json
+date: Tue, 29 Sep 2026 12:18:10 GMT
+server: uvicorn
+via: 1.1 Caddy
+content-length: 68
+
+{"job_id":"3a8451d5-f475-47a5-8b22-1837cd925381","status":"pending"}dashalol@DESKTOP-A6J0572:~$ JOB_ID="3a8451d5-f475-47a5-8b22-1837cd925381"       JOB_ID="3a8451d5-f475-47a5-8b22-1837cd925381"
+dashalol@DESKTOP-A6J0572:~$ curl -i -H "$BASIC_HEADER" "https://seminar04.dataprosvet.ru/events/v1/jobs/$JOB_ID"
+HTTP/2 200
+alt-svc: h3=":443"; ma=2592000
+content-type: application/json
+date: Tue, 29 Sep 2026 12:20:44 GMT
+server: uvicorn
+via: 1.1 Caddy
+content-length: 252
+
+{"job_id":"3a8451d5-f475-47a5-8b22-1837cd925381","status":"completed","results":[{"customer_id":"c-1","normalized_usage":0.042,"risk_score":0.272,"risk_label":"low"},{"customer_id":"c-2","normalized_usage":0.105,"risk_score":0.575,"risk_label":"low"}]}dashalol@DESKTOPcurl -i -X POST https://seminar04.dataprosvet.ru/events/v1/jobs \ts/v1/jobs \
+  -H "$BASIC_HEADER" -H 'Content-Type: application/json' -d '{}'
+HTTP/2 422
+alt-svc: h3=":443"; ma=2592000
+content-type: application/json
+date: Tue, 29 Sep 2026 12:26:26 GMT
+server: uvicorn
+via: 1.1 Caddy
+content-length: 90
+
+{"detail":[{"type":"missing","loc":["body","records"],"msg":"Field required","input":{}}]}dashalol@DESKTOP-A6J0572:~$ curl -i -X POST https://seminacurl -i -X POST https://seminar04.dataprosvet.ru/events/v1/jobs \
+  -H "$BASIC_HEADER" -H 'Content-Type: application/json' \
+  -d '{"records":[{"customer_id":"c-1","monthly_usage":42,"support_tickets":1},{"customer_id":"c-2","monthly_usage":105,"support_tickets":4},{"customer_id":"c-3","monthly_usage":250,"support_tickets":0},{"customer_id":"c-4","monthly_usage":10,"support_tickets":5},{"customer_id":"c-5","monthly_usage":500,"support_tickets":2}]}'
+HTTP/2 202
+alt-svc: h3=":443"; ma=2592000
+content-type: application/json
+date: Tue, 29 Sep 2026 13:28:31 GMT
+server: uvicorn
+via: 1.1 Caddy
+content-length: 68
+
+{"job_id":"e1751912-18d2-481b-b06c-d401a88e14b5","status":"pending"}dashalol@DESKTOP-A6J0572:~$ JOB_ID="e1751912-18d2-481b-b06c-d401a88e14b5"       JOB_ID="e1751912-18d2-481b-b06c-d401a88e14b5"
+curl -i -H "$BASIC_HEADER" "https://seminar04.dataprosvet.ru/events/v1/jobs/$JOB_ID"
+HTTP/2 200
+alt-svc: h3=":443"; ma=2592000
+content-type: application/json
+date: Tue, 29 Sep 2026 13:29:56 GMT
+server: uvicorn
+via: 1.1 Caddy
+content-length: 500
+
+{"job_id":"e1751912-18d2-481b-b06c-d401a88e14b5","status":"completed","results":[{"customer_id":"c-1","normalized_usage":0.042,"risk_score":0.272,"risk_label":"low"},{"customer_id":"c-2","normalized_usage":0.105,"risk_score":0.575,"risk_label":"low"},{"customer_id":"c-3","normalized_usage":0.25,"risk_score":0.4,"risk_label":"low"},{"customer_id":dashdashdashdashalol@DESKTOP-A6J0572:~$

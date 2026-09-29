@@ -1,0 +1,207 @@
+1) рест:
+Сервер — успешный запрос
+
+HTTP/2 200
+alt-svc: h3=":443"; ma=2592000
+content-type: application/json
+date: Mon, 28 Sep 2026 14:59:25 GMT
+server: uvicorn
+via: 1.1 Caddy
+content-length: 39
+
+{"risk_score":0.85,"risk_label":"high"}
+
+
+Сервер — запрос с ошибкой (нет monthly_spend)
+
+HTTP/2 422
+alt-svc: h3=":443"; ma=2592000
+content-type: application/json
+date: Mon, 28 Sep 2026 15:00:00 GMT
+server: uvicorn
+via: 1.1 Caddy
+content-length: 134
+
+{"detail":[{"type":"missing","loc":["body","monthly_spend"],"msg":"Field required","input":{"tenure_months":18,"support_tickets":2}}]}
+
+2)gRPC: четыре типа вызовов
+
+Сервер — reflection и успешный запрос
+
+первая команда:
+
+grpc.reflection.v1alpha.ServerReflection
+seminar04.v1.TransactionInference
+
+вторая команда:
+
+seminar04.v1.TransactionInference is a service:
+service TransactionInference {
+  rpc AggregateTransactions ( stream .seminar04.v1.Transaction ) returns ( .seminar04.v1.TransactionScoreSummary );
+  rpc PredictBatch ( .seminar04.v1.PredictBatchRequest ) returns ( .seminar04.v1.PredictBatchResponse );
+  rpc PredictBatchStream ( .seminar04.v1.PredictBatchRequest ) returns ( stream .seminar04.v1.TransactionPrediction );
+  rpc PredictLive ( stream .seminar04.v1.Transaction ) returns ( stream .seminar04.v1.TransactionPrediction );
+}
+
+третья команда:
+
+{
+  "predictions": [
+    {
+      "id": "tx-1",
+      "risk_score": 0.213,
+      "risk_label": "low"
+    },
+    {
+      "id": "tx-2",
+      "risk_score": 0.848,
+      "risk_label": "high"
+    }
+  ]
+}
+
+
+Сервер — запрос с ошибкой (пропущено id)
+
+ERROR:
+  Code: InvalidArgument
+  Message: transaction id must not be empty
+
+Server streaming: один пакет, несколько ответов
+
+{
+  "id": "tx-1",
+  "risk_score": 0.213,
+  "risk_label": "low"
+}
+{
+  "id": "tx-2",
+  "risk_score": 0.848,
+  "risk_label": "high"
+}
+
+Client streaming: несколько транзакций, одна сводка
+
+
+{
+  "transaction_count": 2,
+  "average_risk": 0.53,
+  "high_risk_count": 1
+}
+
+
+Bidirectional streaming: сообщения в обе стороны одного вызова
+
+{"id":"tx-live-1","amount":125.5,"international":false,"merchant_risk":0.2}
+{
+  "id": "tx-live-1",
+  "risk_score": 0.213,
+  "risk_label": "low"
+}
+{"id":"tx-live-2","amount":980,"international":true,"merchant_risk":0.8}
+{
+  "id": "tx-live-2",
+  "risk_score": 0.848,
+  "risk_label": "high"
+}
+{"id":"tx-live-3","amount":50.0,"international":false,"merchant_risk":0.3}
+{
+  "id": "tx-live-3",
+  "risk_score": 0.255,
+  "risk_label": "low"
+}
+{"id":"tx-live-4","amount":3467.0,"international":true,"merchant_risk":0.6}
+{
+  "id": "tx-live-4",
+  "risk_score": 0.997,
+  "risk_label": "high"
+}
+{"id":"tx-live-5","amount":12.0,"international":true,"merchant_risk":0.1}
+{
+  "id": "tx-live-5",
+  "risk_score": 0.401,
+  "risk_label": "low"
+}
+{"id":"tx-live-6","amount":756.0,"international":true,"merchant_risk":0.4}
+{
+  "id": "tx-live-6",
+  "risk_score": 0.626,
+  "risk_label": "high"
+}
+
+
+
+3. WebSocket: поток предсказаний
+
+Сервер — откройте защищённое соединение + ввод основных строк и дополнительных
+
+dashalol@DESKTOP-A6J0572:~$ websocat -t -H="$BASIC_HEADER" wss://seminar04.dataprosvet.ru/stream/v1/live
+{"temperature":65,"vibration":0.12,"rpm":1400}
+{"anomaly_score":0.012,"anomaly":false}
+
+{"temperature":112,"vibration":0.91,"rpm":2800}
+{"anomaly_score":0.616,"anomaly":true}
+
+{"temperature":24,"vibration":0.24,"rpm":2400}
+{"anomaly_score":0.024,"anomaly":false}
+
+{"temperature":199,"vibration":0.99,"rpm":1000}
+{"anomaly_score":1.0,"anomaly":true}
+
+Сообщение с ошибкой
+
+{"temperature":65,"rpm":1400}
+{"error":"invalid_telemetry","detail":"1 validation error for Telemetry\nvibration\n  Field required [type=missing, input_value={'temperature': 65, 'rpm': 1400}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.10/v/missing"}
+
+Ввод ещё одного корректного сообщения
+
+{"temperature":123,"vibration":0.12,"rpm":1234}
+{"anomaly_score":0.674,"anomaly":true}
+
+
+4. Event-driven: задание для отдельного worker
+
+ввод команды и получение статуса pending для ввода job_id сразу вместе со своими примерами
+
+dashalol@DESKTOP-A6J0572:~$ curl -i -X POST https://seminacurl -i -X POST https://seminar04.dataprosvet.ru/events/v1/jobs \
+  -H "$BASIC_HEADER" -H 'Content-Type: application/json' \
+  -d '{"records":[{"customer_id":"c-1","monthly_usage":42,"support_tickets":1},{"customer_id":"c-2","monthly_usage":105,"support_tickets":4},{"customer_id":"c-3","monthly_usage":250,"support_tickets":0},{"customer_id":"c-4","monthly_usage":10,"support_tickets":5},{"customer_id":"c-5","monthly_usage":500,"support_tickets":2}]}'
+HTTP/2 202
+alt-svc: h3=":443"; ma=2592000
+content-type: application/json
+date: Tue, 29 Sep 2026 13:28:31 GMT
+server: uvicorn
+via: 1.1 Caddy
+content-length: 68
+
+{"job_id":"e1751912-18d2-481b-b06c-d401a88e14b5","status":"pending"}
+
+
+успешный запрос
+
+dashalol@DESKTOP-A6J0572:~$ JOB_ID="e1751912-18d2-481b-b06c-d401a88e14b5"       JOB_ID="e1751912-18d2-481b-b06c-d401a88e14b5"
+curl -i -H "$BASIC_HEADER" "https://seminar04.dataprosvet.ru/events/v1/jobs/$JOB_ID"
+HTTP/2 200
+alt-svc: h3=":443"; ma=2592000
+content-type: application/json
+date: Tue, 29 Sep 2026 13:29:56 GMT
+server: uvicorn
+via: 1.1 Caddy
+content-length: 500
+
+{"job_id":"e1751912-18d2-481b-b06c-d401a88e14b5","status":"completed","results":[{"customer_id":"c-1","normalized_usage":0.042,"risk_score":0.272,"risk_label":"low"},{"customer_id":"c-2","normalized_usage":0.105,"risk_score":0.575,"risk_label":"low"},{"customer_id":"c-3","normalized_usage":0.25,"risk_score":0.4,"risk_label":"low"},{"customer_id":"c-4","normalized_usage":0.01,"risk_score":0.56,"risk_label":"low"},{"customer_id":"c-5","normalized_usage":0.5,"risk_score":0.81,"risk_label":"high"}]}
+
+
+Сервер — неверное тело
+
+dashalol@DESKTOPcurl -i -X POST https://seminar04.dataprosvet.ru/events/v1/jobs \ts/v1/jobs \
+  -H "$BASIC_HEADER" -H 'Content-Type: application/json' -d '{}'
+HTTP/2 422
+alt-svc: h3=":443"; ma=2592000
+content-type: application/json
+date: Tue, 29 Sep 2026 12:26:26 GMT
+server: uvicorn
+via: 1.1 Caddy
+content-length: 90
+
+{"detail":[{"type":"missing","loc":["body","records"],"msg":"Field required","input":{}}]}
