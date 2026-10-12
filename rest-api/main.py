@@ -1,98 +1,183 @@
-"""Шаблон REST-сервиса для ДЗ семинара 6.
-
-Ориентир — user-service из семинара 3 (ветка seminar/03-api-interaction).
-Можно оставить «пользователей», а можно придумать свою предметную область:
-переименуйте модели и пути, но сохраните четыре метода и форму CRUD:
-
-    POST   /v1/<resource>          — создать объект, вернуть его идентификатор
-    GET    /v1/<resource>/{id}     — получить объект
-    PUT    /v1/<resource>/{id}     — изменить объект
-    DELETE /v1/<resource>/{id}     — удалить объект
-
-Запуск: uvicorn main:app --reload  →  http://localhost:8000/docs
-"""
-
 from __future__ import annotations
 
-from typing import Optional
+import os
+import sqlite3
+from contextlib import contextmanager
+from enum import Enum
+from pathlib import Path
+from typing import Dict, Iterator, List, Optional, Union
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
-# --- Модели запросов -------------------------------------------------------
-# Каждое поле описывайте через Field с ограничениями (ge/le, min_length,
-# max_length, pattern, ...) и examples: CI строит тестовые запросы по схеме
-# OpenAPI и в первую очередь берёт значения из examples.
+class Sex(str, Enum):
+    MALE = "male"
+    FEMALE = "female"
 
 
-class ItemCreate(BaseModel):
-    # TODO: замените на поля своей модели.
-    name: str = Field(min_length=1, max_length=100, examples=["example"])
+class UserCreate(BaseModel):
+    age: int = Field(ge=6, le=90, examples=[24])
+    sex: Sex = Field(examples=["male"])
 
 
-class ItemUpdate(BaseModel):
-    # TODO: поля для изменения (обычно те же, но необязательные).
-    name: Optional[str] = Field(default=None, min_length=1, max_length=100, examples=["updated"])
+class UserUpdate(BaseModel):
+    age: Optional[int] = Field(default=None, ge=6, le=90, examples=[25])
+    sex: Optional[Sex] = Field(default=None, examples=["female"])
+
+    @model_validator(mode="after")
+    def require_change(self) -> "UserUpdate":
+        if self.age is None and self.sex is None:
+            raise ValueError("At least one field must be provided")
+        return self
 
 
-# --- Модели ответов --------------------------------------------------------
+class UserCreated(BaseModel):
+    user_id: int
+
+class UserDeleted(UserCreated): ...
+
+class UserResponse(UserCreated):
+    age: int
+    sex: Sex
 
 
-class ItemCreated(BaseModel):
-    # Ответ POST обязан содержать идентификатор созданного объекта.
-    item_id: int
-
-
-class ItemResponse(ItemCreated):
-    name: str
+class ValidationIssue(BaseModel):
+    loc: List[Union[str, int]]
+    msg: str
+    type: str
+    input: Optional[object] = None
+    ctx: Optional[Dict[str, object]] = None
 
 
 class ErrorResponse(BaseModel):
-    detail: str
+    detail: Union[str, List[ValidationIssue]]
 
 
-app = FastAPI(title="Item Service", version="1.0.0")
+DB_PATH = Path(os.environ.get("USER_DB_PATH", "data/users.db"))
+DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
-# TODO: выберите хранилище (словарь в памяти, SQLite, ...).
+
+@contextmanager
+def database() -> Iterator[sqlite3.Connection]:
+    connection = sqlite3.connect(DB_PATH)
+    connection.row_factory = sqlite3.Row
+    try:
+        yield connection
+        connection.commit()
+    finally:
+        connection.close()
+
+
+def initialize_database() -> None:
+    with database() as connection:
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                user_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                age INTEGER NOT NULL,
+                sex TEXT NOT NULL CHECK (sex IN ('male', 'female'))
+            )
+            """
+        )
+
+
+app = FastAPI(title="User Service", version="1.0.0")
+
+
+@app.on_event("startup")
+async def startup() -> None:
+    initialize_database()
 
 
 @app.post(
-    "/v1/item",
+    "/v1/user",
     status_code=201,
-    response_model=ItemCreated,
+    response_model=UserCreated,
+    responses={
+        422: {"model": ErrorResponse, "description": "Request validation failed"},
+    },
 )
-async def create_item(payload: ItemCreate) -> ItemCreated:
-    # TODO: сохранить объект и вернуть его идентификатор.
-    raise HTTPException(status_code=501, detail="Not implemented")
+async def create_user(payload: UserCreate) -> UserCreated:
+    with database() as connection:
+        cursor = connection.execute(
+            "INSERT INTO users (age, sex) VALUES (?, ?)",
+            (payload.age, payload.sex.value),
+        )
+    return UserCreated(user_id=cursor.lastrowid)
 
 
 @app.get(
-    "/v1/item/{item_id}",
-    response_model=ItemResponse,
-    responses={404: {"model": ErrorResponse, "description": "Item not found"}},
+    "/v1/user/{user_id}",
+    status_code=200,
+    response_model=UserResponse,
+    responses={
+        404: {"model": ErrorResponse, "description": "User not found"},
+        422: {"model": ErrorResponse, "description": "Request validation failed"},
+    },
 )
-async def get_item(item_id: int) -> ItemResponse:
-    # TODO: вернуть объект или 404, если его нет.
-    raise HTTPException(status_code=501, detail="Not implemented")
-
+async def get_user_data(user_id: int) -> UserResponse:
+    with database() as connection:
+        row = connection.execute(
+            "SELECT user_id, age, sex FROM users WHERE user_id = ?", (user_id,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="User not found")
+        return UserResponse(user_id=row["user_id"], age=row["age"], sex=row["sex"])
 
 @app.put(
-    "/v1/item/{item_id}",
-    response_model=ItemResponse,
-    responses={404: {"model": ErrorResponse, "description": "Item not found"}},
+    "/v1/user/{user_id}",
+    status_code=201,
+    response_model=UserResponse,
+    responses={
+        404: {"model": ErrorResponse, "description": "User not found"},
+        422: {"model": ErrorResponse, "description": "Request validation failed"},
+    },
 )
-async def update_item(item_id: int, payload: ItemUpdate) -> ItemResponse:
-    # TODO: изменить объект и вернуть его новое состояние или 404.
-    raise HTTPException(status_code=501, detail="Not implemented")
+async def update_user(user_id: int, payload: UserUpdate) -> UserResponse:
+    updates: list[str] = []
+    values: list[int | str] = []
+    if payload.age is not None:
+        updates.append("age = ?")
+        values.append(payload.age)
+    if payload.sex is not None:
+        updates.append("sex = ?")
+        values.append(payload.sex.value)
+    values.append(user_id)
 
+    with database() as connection:
+        cursor = connection.execute(
+            f"UPDATE users SET {', '.join(updates)} WHERE user_id = ?",
+            values,
+        )
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="User not found")
+        row = connection.execute(
+            "SELECT user_id, age, sex FROM users WHERE user_id = ?", (user_id,)
+        ).fetchone()
+
+    return UserResponse(user_id=row["user_id"], age=row["age"], sex=row["sex"])
 
 @app.delete(
-    "/v1/item/{item_id}",
+    "/v1/user/{user_id}",
     status_code=204,
     response_model=None,
-    responses={404: {"model": ErrorResponse, "description": "Item not found"}},
+    responses={
+        404: {"model": ErrorResponse, "description": "User not found"},
+        422: {"model": ErrorResponse, "description": "Request validation failed"},
+        500: {"model": ErrorResponse, "description": "User deletion failed"},
+    },
 )
-async def delete_item(item_id: int) -> None:
-    # TODO: удалить объект или вернуть 404.
-    raise HTTPException(status_code=501, detail="Not implemented")
+async def delete_user(user_id: int) -> None:
+    with database() as connection:
+        row = connection.execute(
+            "SELECT user_id FROM users WHERE user_id = ?", (user_id,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="User not found")
+        try:
+            connection.execute(
+                    "DELETE FROM users WHERE user_id = ?", (user_id,)
+            )
+        except:
+            raise HTTPException(status_code=500, detail="Something went wrong cudring user deletion")
