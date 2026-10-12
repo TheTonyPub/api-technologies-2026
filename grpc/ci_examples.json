@@ -1,0 +1,16 @@
+{
+  "RateMeal": [
+    {"flavor": "FLAVOR_CHEESE", "pieces": 3, "eaten_at": "2026-10-12", "comment": "после пары"}
+  ],
+  "EatingPlan": [
+    {"total_pieces": 10, "per_day": 3}
+  ],
+  "SummarizeMeals": [
+    {"flavor": "FLAVOR_CLASSIC", "pieces": 2, "eaten_at": "2026-10-11", "comment": "обед"},
+    {"flavor": "FLAVOR_PEPPERONI", "pieces": 4, "eaten_at": "2026-10-12", "comment": "ужин"}
+  ],
+  "LiveCounter": [
+    {"flavor": "FLAVOR_CLASSIC", "pieces": 1, "eaten_at": "2026-10-13", "comment": "завтрак"},
+    {"flavor": "FLAVOR_CHEESE", "pieces": 2, "eaten_at": "2026-10-13", "comment": "перекус"}
+  ]
+}

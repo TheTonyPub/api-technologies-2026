@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package homework.v1;
+
+enum Flavor {
+  FLAVOR_UNSPECIFIED = 0;
+  FLAVOR_CLASSIC = 1;
+  FLAVOR_CHEESE = 2;
+  FLAVOR_PEPPERONI = 3;
+}
+
+message Meal {
+  Flavor flavor = 1;
+  int32 pieces = 2;
+  string eaten_at = 3;
+  string comment = 4;
+}
+
+message MealInfo {
+  int32 calories = 1;
+  double cost_rub = 2;
+  string verdict = 3;
+}
+
+message PlanRequest {
+  int32 total_pieces = 1;
+  int32 per_day = 2;
+}
+
+message DayPlan {
+  int32 day = 1;
+  int32 pieces = 2;
+  int32 left = 3;
+}
+
+message Summary {
+  int32 meal_count = 1;
+  int32 total_pieces = 2;
+  int32 total_calories = 3;
+  double average_pieces = 4;
+}
+
+message RunningTotal {
+  int32 meals = 1;
+  int32 total_pieces = 2;
+  int32 total_calories = 3;
+  string message = 4;
+}
+
+service ChebupizzaService {
+  // unary: один приём пищи -> калории, цена и вердикт
+  rpc RateMeal(Meal) returns (MealInfo);
+  // server streaming: сколько штук всего и по сколько в день -> план по дням
+  rpc EatingPlan(PlanRequest) returns (stream DayPlan);
+  // client streaming: много приёмов -> одна сводка
+  rpc SummarizeMeals(stream Meal) returns (Summary);
+  // bidirectional streaming: после каждого приёма сразу приходит общий счёт
+  rpc LiveCounter(stream Meal) returns (stream RunningTotal);
+}
