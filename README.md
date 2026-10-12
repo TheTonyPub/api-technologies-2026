@@ -6,6 +6,7 @@
 
 - [Что сделать](#что-сделать)
 - [Структура репозитория](#структура-репозитория)
+- [Какие файлы можно менять](#какие-файлы-можно-менять)
 - [REST: требования](#rest-требования)
 - [gRPC: требования](#grpc-требования)
 - [Как работает CI](#как-работает-ci)
@@ -22,20 +23,29 @@
 ```text
 rest-api/              ← REST-сервис (обязательно)
 ├── main.py            ← приложение FastAPI: app = FastAPI(...)
-├── requirements.txt   ← обязательно fastapi и uvicorn
-└── Dockerfile         ← готовый, обычно менять не нужно
+└── requirements.txt   ← обязательно fastapi и uvicorn
 grpc/                  ← gRPC-сервис (только если вам разрешён gRPC)
 ├── proto/*.proto
 ├── *_pb2.py, *_pb2_grpc.py   ← сгенерированы из .proto
 ├── server.py          ← сервер на порту 50051
-├── requirements.txt
-└── Dockerfile
+└── requirements.txt
 templates/grpc/        ← шаблон gRPC-сервиса, его копируют в grpc/
-ci/                    ← тесты CI, не изменяйте
-.github/workflows/     ← CI, не изменяйте
+ci/                    ← тесты CI
+.github/workflows/     ← CI
 ```
 
-В ветке уже лежат шаблоны: `rest-api/main.py` с заготовками всех четырёх методов, `rest-api/requirements.txt` и `rest-api/Dockerfile`. Шаблон gRPC лежит в `templates/grpc/`, а не в `grpc/`: CI проверяет gRPC только тогда, когда в корне есть папка `grpc/`.
+В ветке уже лежат шаблоны: `rest-api/main.py` с заготовками всех четырёх методов и `rest-api/requirements.txt`. Шаблон gRPC лежит в `templates/grpc/`, а не в `grpc/`: CI проверяет gRPC только тогда, когда в корне есть папка `grpc/`.
+
+## Какие файлы можно менять
+
+PR может менять **только** файлы в двух папках:
+
+| Папка | Что можно |
+|---|---|
+| `rest-api/` | любые файлы: `main.py`, `requirements.txt`, свои модули и т. д. |
+| `grpc/` | любые файлы: `.proto`, сгенерированные `*_pb2.py`/`*_pb2_grpc.py`, `server.py`, `requirements.txt`, `ci_examples.json` и т. д. |
+
+Всё остальное менять **нельзя**: `README.md`, `.gitignore`, `.gitattributes`, `ci/`, `.github/`, `templates/`. Удалять файлы вне этих двух папок тоже нельзя. Если PR затрагивает что-то кроме `rest-api/` и `grpc/`, первый же шаг CI («Структура PR») упадёт и покажет список лишних файлов. Состав команды и описание работы пишите в описании PR, а не в README.
 
 ## REST: требования
 
@@ -63,6 +73,16 @@ ci/                    ← тесты CI, не изменяйте
 - У ответов `GET`, `POST`, `PUT` есть модель: `response_model=...` или аннотация возвращаемого типа.
 - Укажите `examples=[...]` в `Field`. CI строит запросы по схеме OpenAPI и в первую очередь берёт значения из `examples`; для поля с `pattern` без `examples` подходящее значение может не найтись.
 
+### Хранение данных
+
+Базу данных не используйте (в том числе SQLite, как в семинаре 3). «База» — обычный питоновский словарь, объявленный в `main.py`, например:
+
+```python
+users: dict[int, UserResponse] = {}
+```
+
+Ключ — идентификатор объекта, значение — сам объект. Данные живут, пока запущен процесс, после перезапуска словарь пустой — так и задумано.
+
 ### Ошибки
 
 - Несуществующий объект: `GET`, `PUT`, `DELETE` возвращают `404`.
@@ -78,14 +98,8 @@ pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
-Swagger UI — http://localhost:8000/docs. Через Docker:
+Swagger UI — http://localhost:8000/docs.
 
-```sh
-docker build -t my-rest rest-api
-docker run --rm -p 8000:8000 my-rest
-```
-
-Если сервис хранит данные в файле (например, SQLite), путь к файлу должен быть внутри рабочей папки: `data/users.db`, как в семинаре 3.
 
 ## gRPC: требования
 
@@ -126,8 +140,8 @@ CI вызывает каждый метод с автоматически зап
 
 Workflow `.github/workflows/homework-06.yml` запускается на каждый PR в эту ветку.
 
-1. **Структура PR.** Есть `rest-api/main.py` и `rest-api/requirements.txt`; PR не меняет `.github/` и `ci/`.
-2. **REST.** Собирается образ из `rest-api/Dockerfile` (`python:3.13-alpine`), контейнер запускается командой `uvicorn main:app --host 0.0.0.0 --port 8000`. Затем тесты `ci/rest_tests` читают `/openapi.json` и проверяют:
+1. **Структура PR.** Есть `rest-api/main.py` и `rest-api/requirements.txt`; PR меняет только файлы в `rest-api/` и `grpc/`.
+2. **REST.** На чистом Python 3.13 ставятся зависимости из `rest-api/requirements.txt`, сервис запускается командой `uvicorn main:app --host 0.0.0.0 --port 8000`. Затем тесты `ci/rest_tests` читают `/openapi.json` и проверяют:
    - в `requirements.txt` есть `fastapi` и `uvicorn`;
    - в схеме есть методы `GET`, `POST`, `PUT`, `DELETE`;
    - у `POST`/`PUT` тело — модель с ограничениями `Field`, у `GET`/`POST`/`PUT` описан ответ;
@@ -135,15 +149,7 @@ Workflow `.github/workflows/homework-06.yml` запускается на каж�
    - `GET`/`PUT`/`DELETE` несуществующего объекта возвращают `404`;
    - тела с нарушением каждого ограничения и без обязательных полей возвращают `422`;
    - каждая операция из схемы вызывается хотя бы раз и не отвечает `5xx`.
-3. **gRPC** — только если в PR есть папка `grpc/`, иначе job пропускается. Собирается образ из `grpc/Dockerfile`, запускается `python server.py`. Тесты `ci/grpc_tests` компилируют ваши `.proto`, проверяют наличие сгенерированных `*_pb2.py`/`*_pb2_grpc.py`, наличие всех четырёх типов вызовов и вызывают каждый метод.
-
-Те же проверки можно запустить у себя (нужны Docker и Python 3.11+):
-
-```sh
-pip install -r ci/requirements.txt
-bash ci/run_rest.sh
-bash ci/run_grpc.sh
-```
+3. **gRPC** — только если в PR есть папка `grpc/`, иначе job пропускается. Ставятся зависимости из `grpc/requirements.txt`, запускается `python server.py`. Тесты `ci/grpc_tests` компилируют ваши `.proto`, проверяют наличие сгенерированных `*_pb2.py`/`*_pb2_grpc.py`, наличие всех четырёх типов вызовов и вызывают каждый метод.
 
 Если CI красный, откройте упавший job: в тексте ошибки указаны метод, отправленный запрос и полученный ответ, а в конце — логи сервиса.
 

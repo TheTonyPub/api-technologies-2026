@@ -39,13 +39,14 @@ jobs:
             echo "Папки grpc/ нет — gRPC пропускается"
           fi
 
-      - name: CI и тесты не изменены
+      - name: PR меняет только разрешённые файлы
         if: github.event_name == 'pull_request'
         run: |
-          changed="$(git diff --name-only HEAD^1 HEAD -- .github ci)"
-          if [ -n "$changed" ]; then
-            echo "::error::PR не должен менять .github/ и ci/:"
-            echo "$changed"
+          # Студентам можно менять только rest-api/ и grpc/.
+          forbidden="$(git diff --name-only HEAD^1 HEAD | grep -vE '^(rest-api|grpc)/' || true)"
+          if [ -n "$forbidden" ]; then
+            echo "::error::PR может менять только файлы в rest-api/ и grpc/. Уберите из PR изменения в:"
+            echo "$forbidden"
             exit 1
           fi
 

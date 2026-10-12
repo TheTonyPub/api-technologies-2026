@@ -17,7 +17,7 @@ if [ ! -d "$SERVICE_DIR" ]; then
 fi
 [ -f "$SERVICE_DIR/server.py" ] || fail "Нет файла grpc/server.py"
 [ -f "$SERVICE_DIR/requirements.txt" ] || fail "Нет файла grpc/requirements.txt"
-[ -f "$SERVICE_DIR/Dockerfile" ] || fail "Нет файла grpc/Dockerfile (возьмите его из templates/grpc)"
+
 
 cleanup() {
   docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
@@ -26,7 +26,7 @@ trap cleanup EXIT
 cleanup
 
 echo "::group::Сборка образа"
-docker build -t "$IMAGE" "$SERVICE_DIR"
+docker build -t "$IMAGE" -f "$ROOT/ci/docker/grpc.Dockerfile" "$SERVICE_DIR"
 docker image ls "$IMAGE" --format 'Размер образа: {{.Size}}'
 echo "::endgroup::"
 

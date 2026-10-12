@@ -1,3 +1,4 @@
+# Образ, в котором CI запускает rest-api/. Студентам менять не нужно.
 FROM python:3.13-alpine
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -8,7 +9,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install --only-binary=:all: -r requirements.txt \
+RUN pip install -r requirements.txt \
     && adduser -D -H -u 10001 app \
     && chown app /app
 
@@ -16,6 +17,6 @@ COPY --chown=app:app . .
 
 USER app
 
-EXPOSE 50051
+EXPOSE 8000
 
-CMD ["python", "server.py"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

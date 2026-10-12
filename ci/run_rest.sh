@@ -14,7 +14,7 @@ fail() { echo "::error::$*" >&2; exit 1; }
 [ -d "$SERVICE_DIR" ] || fail "Нет папки rest-api/ в корне репозитория"
 [ -f "$SERVICE_DIR/main.py" ] || fail "Нет файла rest-api/main.py"
 [ -f "$SERVICE_DIR/requirements.txt" ] || fail "Нет файла rest-api/requirements.txt"
-[ -f "$SERVICE_DIR/Dockerfile" ] || fail "Нет файла rest-api/Dockerfile (возьмите его из ветки семинара)"
+
 
 cleanup() {
   docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
@@ -23,7 +23,7 @@ trap cleanup EXIT
 cleanup
 
 echo "::group::Сборка образа"
-docker build -t "$IMAGE" "$SERVICE_DIR"
+docker build -t "$IMAGE" -f "$ROOT/ci/docker/rest.Dockerfile" "$SERVICE_DIR"
 docker image ls "$IMAGE" --format 'Размер образа: {{.Size}}'
 echo "::endgroup::"
 

@@ -4,7 +4,3 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .env
-*.db
-data/
-Dockerfile
-.dockerignore
