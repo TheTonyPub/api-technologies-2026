@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>CORS demo</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; }
+    button { font-size: 16px; padding: 8px 16px; margin-right: 8px; }
+    pre { background: #f4f4f4; padding: 12px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>CORS demo</h1>
+  <p>Страница открыта с <code>http://localhost:5500</code>, API живёт на <code>http://localhost:8000</code> — это разные origin.</p>
+  <button id="list">GET /v1/tasks</button>
+  <button id="create">POST /v1/tasks</button>
+  <pre id="out">Нажмите кнопку и откройте DevTools → Console / Network</pre>
+  <script>
+    const API = "http://localhost:8000";
+    const out = document.getElementById("out");
+
+    async function call(method, path, body) {
+      try {
+        const res = await fetch(API + path, {
+          method,
+          headers: body ? { "Content-Type": "application/json" } : {},
+          body: body ? JSON.stringify(body) : undefined,
+        });
+        const text = await res.text();
+        out.textContent = `${res.status}\nX-Process-Time-Ms: ${res.headers.get("X-Process-Time-Ms")}\n\n${text}`;
+      } catch (err) {
+        out.textContent = "Ошибка: " + err + "\n\nСмотрите в консоли: blocked by CORS policy";
+      }
+    }
+
+    document.getElementById("list").onclick = () => call("GET", "/v1/tasks");
+    document.getElementById("create").onclick = () =>
+      call("POST", "/v1/tasks", { title: "Задача из браузера", priority: "high" });
+  </script>
+</body>
+</html>
