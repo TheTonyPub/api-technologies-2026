@@ -1,0 +1,27 @@
+name: Main PR author guard
+
+# pull_request_target берёт workflow из базовой ветки (main),
+# поэтому автор PR не может обойти проверку, изменив этот файл в своём PR.
+# Код из PR не скачивается и не запускается.
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, reopened, synchronize, edited, ready_for_review]
+
+permissions: {}
+
+jobs:
+  check-author:
+    name: Check PR author
+    runs-on: ubuntu-latest
+    steps:
+      - name: Allow only TheTonyPub
+        env:
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          ALLOWED_AUTHOR: TheTonyPub
+        run: |
+          if [ "$PR_AUTHOR" != "$ALLOWED_AUTHOR" ]; then
+            echo "::error::PR в main разрешены только от $ALLOWED_AUTHOR (автор: $PR_AUTHOR)"
+            exit 1
+          fi
+          echo "Автор PR: $PR_AUTHOR — проверка пройдена"
