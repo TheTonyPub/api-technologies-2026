@@ -1,100 +1,147 @@
-"""Шаблон REST-сервиса для ДЗ семинара 6.
+"""
+REST API для сервиса пользователей (User Service).
 
-Ориентир — user-service из семинара 3 (ветка seminar/03-api-interaction).
-Можно оставить «пользователей», а можно придумать свою предметную область:
-переименуйте модели и пути, но сохраните четыре метода и форму CRUD:
-
-    POST   /v1/<resource>          — создать объект, вернуть его идентификатор
-    GET    /v1/<resource>/{id}     — получить объект
-    PUT    /v1/<resource>/{id}     — изменить объект
-    DELETE /v1/<resource>/{id}     — удалить объект
+Методы:
+    POST   /v1/user          — создать пользователя, вернуть его идентификатор
+    GET    /v1/user/{id}     — получить пользователя
+    PUT    /v1/user/{id}     — изменить пользователя
+    DELETE /v1/user/{id}     — удалить пользователя
 
 Запуск: uvicorn main:app --reload  →  http://localhost:8000/docs
 """
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, Literal
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
+from uuid import uuid4
 
 
 # --- Модели запросов -------------------------------------------------------
-# Каждое поле описывайте через Field с ограничениями (ge/le, min_length,
-# max_length, pattern, ...) и examples: CI строит тестовые запросы по схеме
-# OpenAPI и в первую очередь берёт значения из examples.
+# Каждое поле описываем через Field с ограничениями и examples.
 
 
-class ItemCreate(BaseModel):
-    # TODO: замените на поля своей модели.
-    name: str = Field(min_length=1, max_length=100, examples=["example"])
+class UserCreate(BaseModel):
+    """Модель для создания пользователя (POST)."""
+    age: int = Field(
+        ..., 
+        ge=0, 
+        le=120, 
+        description="Возраст пользователя",
+        examples=[25]
+    )
+    sex: Literal["male", "female"] = Field(
+        ..., 
+        description="Пол пользователя",
+        examples=["male"]
+    )
 
 
-class ItemUpdate(BaseModel):
-    # TODO: поля для изменения (обычно те же, но необязательные).
-    name: Optional[str] = Field(default=None, min_length=1, max_length=100, examples=["updated"])
+class UserUpdate(BaseModel):
+    """Модель для обновления пользователя (PUT). 
+    Поля необязательные, чтобы можно было менять только часть данных."""
+    age: Optional[int] = Field(
+        default=None, 
+        ge=0, 
+        le=120, 
+        description="Возраст пользователя",
+        examples=[30]
+    )
+    sex: Optional[Literal["male", "female"]] = Field(
+        default=None, 
+        description="Пол пользователя",
+        examples=["female"]
+    )
 
 
 # --- Модели ответов --------------------------------------------------------
 
 
-class ItemCreated(BaseModel):
-    # Ответ POST обязан содержать идентификатор созданного объекта.
-    item_id: int
+class UserCreated(BaseModel):
+    """Ответ POST обязан содержать идентификатор созданного объекта."""
+    user_id: int
 
 
-class ItemResponse(ItemCreated):
-    name: str
+class UserResponse(UserCreated):
+    """Полная модель ответа для GET и PUT."""
+    age: int
+    sex: Literal["male", "female"]
 
 
 class ErrorResponse(BaseModel):
+    """Модель для описания ошибок в Swagger."""
     detail: str
 
 
-app = FastAPI(title="Item Service", version="1.0.0")
+app = FastAPI(title="User Service", version="1.0.0")
 
-# «База» данных — словарь в памяти: ключ — item_id, значение — объект.
+# «База» данных — словарь в памяти: ключ — user_id, значение — объект.
 # Базу данных (SQLite и т. п.) не используем.
-items: dict[int, ItemResponse] = {}
+users: dict[int, UserResponse] = {}
 
 
 @app.post(
-    "/v1/item",
+    "/v1/user",
     status_code=201,
-    response_model=ItemCreated,
+    response_model=UserCreated,
 )
-async def create_item(payload: ItemCreate) -> ItemCreated:
-    # TODO: сохранить объект и вернуть его идентификатор.
-    raise HTTPException(status_code=501, detail="Not implemented")
+async def create_user(payload: UserCreate) -> UserCreated:
+    """Создать нового пользователя."""
+    new_id = uuid4().int
+    user_obj = UserResponse(user_id=new_id, **payload.model_dump())
+    users[new_id] = user_obj
+    return UserCreated(user_id=new_id)
 
 
 @app.get(
-    "/v1/item/{item_id}",
-    response_model=ItemResponse,
-    responses={404: {"model": ErrorResponse, "description": "Item not found"}},
+    "/v1/user/{user_id}",
+    response_model=UserResponse,
+    responses={404: {"model": ErrorResponse, "description": "User not found"}},
 )
-async def get_item(item_id: int) -> ItemResponse:
-    # TODO: вернуть объект или 404, если его нет.
-    raise HTTPException(status_code=501, detail="Not implemented")
+async def get_user(user_id: int) -> UserResponse:
+    """Получить пользователя по ID."""
+    if user_id not in users:
+        raise HTTPException(status_code=404, detail="User not found")
+    return users[user_id]
 
 
 @app.put(
-    "/v1/item/{item_id}",
-    response_model=ItemResponse,
-    responses={404: {"model": ErrorResponse, "description": "Item not found"}},
+    "/v1/user/{user_id}",
+    response_model=UserResponse,
+    responses={404: {"model": ErrorResponse, "description": "User not found"}},
 )
-async def update_item(item_id: int, payload: ItemUpdate) -> ItemResponse:
-    # TODO: изменить объект и вернуть его новое состояние или 404.
-    raise HTTPException(status_code=501, detail="Not implemented")
+async def update_user(user_id: int, payload: UserUpdate) -> UserResponse:
+    """Изменить пользователя и вернуть его новое состояние."""
+    if user_id not in users:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Получаем текущие данные
+    current_user = users[user_id]
+    
+    # Обновляем только те поля, которые переданы (не None)
+    update_data = payload.model_dump(exclude_unset=True)
+    updated_user = current_user.model_copy(update=update_data)
+    
+    users[user_id] = updated_user
+    return updated_user
 
 
 @app.delete(
-    "/v1/item/{item_id}",
+    "/v1/user/{user_id}",
     status_code=204,
     response_model=None,
-    responses={404: {"model": ErrorResponse, "description": "Item not found"}},
+    responses={404: {"model": ErrorResponse, "description": "User not found"}},
 )
-async def delete_item(item_id: int) -> None:
-    # TODO: удалить объект или вернуть 404.
-    raise HTTPException(status_code=501, detail="Not implemented")
+async def delete_user(user_id: int) -> None:
+    """Удалить пользователя или вернуть 404."""
+    if user_id not in users:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    del users[user_id]
+    return None
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
