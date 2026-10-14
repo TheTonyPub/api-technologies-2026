@@ -1,7 +1,12 @@
 name: ДЗ 6 — REST и gRPC
 
+# pull_request_target, а не pull_request: GitHub не требует ручного аппрува
+# запуска для PR из fork. Workflow, ci/ и тесты всегда берутся из базовой ветки,
+# из PR подставляются только rest-api/ и grpc/ (ci/use_pr_code.sh).
+# Код студента запускается только внутри Docker-контейнера; токен — только
+# на чтение, секретов нет, кэш не используется.
 on:
-  pull_request:
+  pull_request_target:
     branches:
       - seminar/06-rest-api-development
   workflow_dispatch:
@@ -22,7 +27,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Код из PR
+        if: github.event_name == 'pull_request_target'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: .pr
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: PR меняет только разрешённые файлы
+        if: github.event_name == 'pull_request_target'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          # Студентам можно менять только rest-api/ и grpc/.
+          forbidden="$(git -C .pr diff --name-only "$BASE_SHA"...HEAD | grep -vE '^(rest-api|grpc)/' || true)"
+          if [ -n "$forbidden" ]; then
+            echo "::error::PR может менять только файлы в rest-api/ и grpc/. Уберите из PR изменения в:"
+            echo "$forbidden"
+            exit 1
+          fi
+
+      - name: Подстановка rest-api/ и grpc/ из PR
+        if: github.event_name == 'pull_request_target'
+        run: bash ci/use_pr_code.sh .pr
 
       - name: Проверка папок
         id: detect
@@ -39,17 +70,6 @@ jobs:
             echo "Папки grpc/ нет — gRPC пропускается"
           fi
 
-      - name: PR меняет только разрешённые файлы
-        if: github.event_name == 'pull_request'
-        run: |
-          # Студентам можно менять только rest-api/ и grpc/.
-          forbidden="$(git diff --name-only HEAD^1 HEAD | grep -vE '^(rest-api|grpc)/' || true)"
-          if [ -n "$forbidden" ]; then
-            echo "::error::PR может менять только файлы в rest-api/ и grpc/. Уберите из PR изменения в:"
-            echo "$forbidden"
-            exit 1
-          fi
-
   rest:
     name: REST (rest-api)
     needs: layout
@@ -57,12 +77,24 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Код из PR
+        if: github.event_name == 'pull_request_target'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: .pr
+          persist-credentials: false
+
+      - name: Подстановка rest-api/ и grpc/ из PR
+        if: github.event_name == 'pull_request_target'
+        run: bash ci/use_pr_code.sh .pr
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-          cache: pip
-          cache-dependency-path: ci/requirements.txt
 
       - name: Зависимости тестов
         run: pip install -r ci/requirements.txt
@@ -78,12 +110,24 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Код из PR
+        if: github.event_name == 'pull_request_target'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: .pr
+          persist-credentials: false
+
+      - name: Подстановка rest-api/ и grpc/ из PR
+        if: github.event_name == 'pull_request_target'
+        run: bash ci/use_pr_code.sh .pr
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-          cache: pip
-          cache-dependency-path: ci/requirements.txt
 
       - name: Зависимости тестов
         run: pip install -r ci/requirements.txt
