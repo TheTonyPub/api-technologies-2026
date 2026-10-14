@@ -21,8 +21,8 @@ class PredictionCreate(BaseModel):
     support_tickets: int = Field(ge=0, le=1000, examples=[3])
 
 
-# Для PUT нужны те же поля, поэтому модель одна и та же
-PredictionUpdate = PredictionCreate
+class PredictionUpdate(PredictionCreate):
+    """Тело PUT: те же поля, что и при создании."""
 
 
 # --- Модели ответов --------------------------------------------------------
@@ -33,9 +33,6 @@ class PredictionCreated(BaseModel):
 
 
 class PredictionResponse(PredictionCreated):
-    tenure_months: int
-    monthly_spend: float
-    support_tickets: int
     risk_score: float
     risk_label: str
 
@@ -51,10 +48,10 @@ predictions: dict[int, PredictionResponse] = {}
 next_id = 1
 
 
-def calculate(data: PredictionCreate) -> PredictionResponse:
-    # чем меньше стаж и больше трат и обращений, тем выше риск
-    # min/max ограничивают результат диапазоном от 0 до 1
-    score = min(
+def calculate_score(data: PredictionCreate) -> float:
+    # Простая формула риска: чем меньше стаж и больше траты и обращения в поддержку,
+    # тем выше риск. min/max ограничивают результат диапазоном от 0 до 1.
+    return min(
         1.0,
         max(
             0.0,
@@ -64,30 +61,29 @@ def calculate(data: PredictionCreate) -> PredictionResponse:
             + 0.04 * data.support_tickets,
         ),
     )
-    return PredictionResponse(
-        prediction_id=0,  # настоящий id подставим при сохранении
-        tenure_months=data.tenure_months,
-        monthly_spend=data.monthly_spend,
-        support_tickets=data.support_tickets,
-        risk_score=round(score, 3),
-        risk_label="high" if score >= 0.6 else "low",
-    )
+
+
+def get_label(score: float) -> str:
+    return "high" if score >= 0.6 else "low"
 
 
 @app.post(
     "/v1/prediction",
-    status_code=201,
     response_model=PredictionCreated,
 )
 async def create_prediction(payload: PredictionCreate) -> PredictionCreated:
     global next_id
 
-    prediction = calculate(payload)
-    prediction.prediction_id = next_id
-    predictions[next_id] = prediction
+    score = calculate_score(payload)
+    prediction_id = next_id
     next_id += 1
+    predictions[prediction_id] = PredictionResponse(
+        prediction_id=prediction_id,
+        risk_score=round(score, 3),
+        risk_label=get_label(score),
+    )
 
-    return PredictionCreated(prediction_id=prediction.prediction_id)
+    return PredictionCreated(prediction_id=prediction_id)
 
 
 @app.get(
@@ -111,8 +107,12 @@ async def update_prediction(prediction_id: int, payload: PredictionUpdate) -> Pr
     if prediction_id not in predictions:
         raise HTTPException(status_code=404, detail="Prediction not found")
 
-    prediction = calculate(payload)
-    prediction.prediction_id = prediction_id
+    score = calculate_score(payload)
+    prediction = PredictionResponse(
+        prediction_id=prediction_id,
+        risk_score=round(score, 3),
+        risk_label=get_label(score),
+    )
     predictions[prediction_id] = prediction
 
     return prediction
