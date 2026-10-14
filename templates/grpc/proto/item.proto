@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package homework.v1;
+
+// Шаблон: замените сообщения и методы на свою предметную область,
+// но сохраните четыре типа взаимодействия.
+service ItemService {
+  // Unary: один запрос -> один ответ.
+  rpc GetItem (GetItemRequest) returns (Item);
+  // Server streaming: один запрос -> поток ответов.
+  rpc ListItems (ListItemsRequest) returns (stream Item);
+  // Client streaming: поток запросов -> один ответ.
+  rpc CreateItems (stream Item) returns (CreateItemsSummary);
+  // Bidirectional streaming: поток запросов <-> поток ответов.
+  rpc ProcessItems (stream Item) returns (stream Item);
+}
+
+message Item {
+  string id = 1;
+  string name = 2;
+  double price = 3;
+}
+
+message GetItemRequest {
+  string id = 1;
+}
+
+message ListItemsRequest {
+  uint32 limit = 1;
+}
+
+message CreateItemsSummary {
+  uint32 created_count = 1;
+}

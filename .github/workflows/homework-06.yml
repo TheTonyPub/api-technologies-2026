@@ -1,0 +1,92 @@
+name: ДЗ 6 — REST и gRPC
+
+on:
+  pull_request:
+    branches:
+      - seminar/06-rest-api-development
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hw06-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  layout:
+    name: Структура PR
+    runs-on: ubuntu-latest
+    outputs:
+      grpc: ${{ steps.detect.outputs.grpc }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Проверка папок
+        id: detect
+        run: |
+          if [ ! -f rest-api/main.py ] || [ ! -f rest-api/requirements.txt ]; then
+            echo "::error::Нужны rest-api/main.py и rest-api/requirements.txt"
+            exit 1
+          fi
+          if [ -d grpc ]; then
+            echo "grpc=true" >> "$GITHUB_OUTPUT"
+            echo "Найдена папка grpc/ — gRPC будет проверен"
+          else
+            echo "grpc=false" >> "$GITHUB_OUTPUT"
+            echo "Папки grpc/ нет — gRPC пропускается"
+          fi
+
+      - name: PR меняет только разрешённые файлы
+        if: github.event_name == 'pull_request'
+        run: |
+          # Студентам можно менять только rest-api/ и grpc/.
+          forbidden="$(git diff --name-only HEAD^1 HEAD | grep -vE '^(rest-api|grpc)/' || true)"
+          if [ -n "$forbidden" ]; then
+            echo "::error::PR может менять только файлы в rest-api/ и grpc/. Уберите из PR изменения в:"
+            echo "$forbidden"
+            exit 1
+          fi
+
+  rest:
+    name: REST (rest-api)
+    needs: layout
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: ci/requirements.txt
+
+      - name: Зависимости тестов
+        run: pip install -r ci/requirements.txt
+
+      - name: Сборка, запуск через uvicorn и тесты
+        run: bash ci/run_rest.sh
+
+  grpc:
+    name: gRPC (grpc)
+    needs: layout
+    if: needs.layout.outputs.grpc == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: ci/requirements.txt
+
+      - name: Зависимости тестов
+        run: pip install -r ci/requirements.txt
+
+      - name: Сборка, запуск сервера и тесты
+        run: bash ci/run_grpc.sh
