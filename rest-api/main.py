@@ -35,15 +35,15 @@ next_task_id = 1
 @app.post(
     "/v1/tasks",
     status_code=201,
-    response_model=Task,
+    response_model=dict[str, int],
 )
-async def create_task(payload: TaskData) -> Task:
+async def create_task(payload: TaskData) -> dict[str, int]:
     global next_task_id
 
     task = Task(task_id=next_task_id, **payload.model_dump())
     tasks[next_task_id] = task
     next_task_id += 1
-    return task
+    return {"task_id": task.task_id}
 
 @app.get(
     "/v1/tasks/{task_id}",
