@@ -36,7 +36,10 @@ async def update_item(item_id: int, data: UpdateData):
     if item_id not in items:
         raise HTTPException(status_code=404, detail="Item not found")
     
-    items[item_id]["user_name"] = data.user_name
+    item = items[item_id]
+    updated_item = item.model_copy(update=data.model_dump(exclude_unset=True))
+    items[item_id] = updated_item
+
     return {"message": f"Item {item_id} updated to {data.user_name}"}
 
 
