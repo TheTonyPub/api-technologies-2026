@@ -1,100 +1,60 @@
-"""Шаблон REST-сервиса для ДЗ семинара 6.
-
-Ориентир — user-service из семинара 3 (ветка seminar/03-api-interaction).
-Можно оставить «пользователей», а можно придумать свою предметную область:
-переименуйте модели и пути, но сохраните четыре метода и форму CRUD:
-
-    POST   /v1/<resource>          — создать объект, вернуть его идентификатор
-    GET    /v1/<resource>/{id}     — получить объект
-    PUT    /v1/<resource>/{id}     — изменить объект
-    DELETE /v1/<resource>/{id}     — удалить объект
-
-Запуск: uvicorn main:app --reload  →  http://localhost:8000/docs
-"""
-
-from __future__ import annotations
-
-from typing import Optional
+from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-
-# --- Модели запросов -------------------------------------------------------
-# Каждое поле описывайте через Field с ограничениями (ge/le, min_length,
-# max_length, pattern, ...) и examples: CI строит тестовые запросы по схеме
-# OpenAPI и в первую очередь берёт значения из examples.
+app = FastAPI(title="Movie Service")
 
 
-class ItemCreate(BaseModel):
-    # TODO: замените на поля своей модели.
-    name: str = Field(min_length=1, max_length=100, examples=["example"])
+class MovieCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=150, examples=["Interstellar"])
+    year: int = Field(ge=1888, le=2030, examples=[2014])
+    rating: float = Field(ge=0, le=10, examples=[8.7])
 
 
-class ItemUpdate(BaseModel):
-    # TODO: поля для изменения (обычно те же, но необязательные).
-    name: Optional[str] = Field(default=None, min_length=1, max_length=100, examples=["updated"])
+class MovieUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=150, examples=["Inception"])
+    year: int | None = Field(default=None, ge=1888, le=2030, examples=[2010])
+    rating: float | None = Field(default=None, ge=0, le=10, examples=[8.8])
 
 
-# --- Модели ответов --------------------------------------------------------
+class MovieCreated(BaseModel):
+    movie_id: str
 
 
-class ItemCreated(BaseModel):
-    # Ответ POST обязан содержать идентификатор созданного объекта.
-    item_id: int
+class Movie(MovieCreate):
+    movie_id: str
 
 
-class ItemResponse(ItemCreated):
-    name: str
+movies: dict[str, Movie] = {}
 
 
-class ErrorResponse(BaseModel):
-    detail: str
+def find_movie(movie_id: str) -> Movie:
+    if movie_id not in movies:
+        raise HTTPException(status_code=404, detail="Movie not found")
+    return movies[movie_id]
 
 
-app = FastAPI(title="Item Service", version="1.0.0")
-
-# «База» данных — словарь в памяти: ключ — item_id, значение — объект.
-# Базу данных (SQLite и т. п.) не используем.
-items: dict[int, ItemResponse] = {}
-
-
-@app.post(
-    "/v1/item",
-    status_code=201,
-    response_model=ItemCreated,
-)
-async def create_item(payload: ItemCreate) -> ItemCreated:
-    # TODO: сохранить объект и вернуть его идентификатор.
-    raise HTTPException(status_code=501, detail="Not implemented")
+@app.post("/api/movies", status_code=201, response_model=MovieCreated)
+def add_movie(data: MovieCreate):
+    movie_id = str(uuid4())
+    movies[movie_id] = Movie(movie_id=movie_id, **data.model_dump())
+    return {"movie_id": movie_id}
 
 
-@app.get(
-    "/v1/item/{item_id}",
-    response_model=ItemResponse,
-    responses={404: {"model": ErrorResponse, "description": "Item not found"}},
-)
-async def get_item(item_id: int) -> ItemResponse:
-    # TODO: вернуть объект или 404, если его нет.
-    raise HTTPException(status_code=501, detail="Not implemented")
+@app.get("/api/movies/{movie_id}", response_model=Movie)
+def read_movie(movie_id: str):
+    return find_movie(movie_id)
 
 
-@app.put(
-    "/v1/item/{item_id}",
-    response_model=ItemResponse,
-    responses={404: {"model": ErrorResponse, "description": "Item not found"}},
-)
-async def update_item(item_id: int, payload: ItemUpdate) -> ItemResponse:
-    # TODO: изменить объект и вернуть его новое состояние или 404.
-    raise HTTPException(status_code=501, detail="Not implemented")
+@app.put("/api/movies/{movie_id}", response_model=Movie)
+def edit_movie(movie_id: str, data: MovieUpdate):
+    movie = find_movie(movie_id)
+    movies[movie_id] = movie.model_copy(update=data.model_dump(exclude_none=True))
+    return movies[movie_id]
 
 
-@app.delete(
-    "/v1/item/{item_id}",
-    status_code=204,
-    response_model=None,
-    responses={404: {"model": ErrorResponse, "description": "Item not found"}},
-)
-async def delete_item(item_id: int) -> None:
-    # TODO: удалить объект или вернуть 404.
-    raise HTTPException(status_code=501, detail="Not implemented")
+@app.delete("/api/movies/{movie_id}", status_code=204)
+def remove_movie(movie_id: str):
+    if movies.pop(movie_id, None) is None:
+        raise HTTPException(status_code=404, detail="Movie not found")
