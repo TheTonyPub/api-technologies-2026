@@ -10,9 +10,8 @@ REST API для сервиса пользователей (User Service).
 Запуск: uvicorn main:app --reload  →  http://localhost:8000/docs
 """
 
-from __future__ import annotations
-
 from typing import Optional, Literal
+from enum import Enum 
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
@@ -21,6 +20,9 @@ from uuid import uuid4
 
 # --- Модели запросов -------------------------------------------------------
 # Каждое поле описываем через Field с ограничениями и examples.
+class SexEnum(str, Enum):
+    male = "male"
+    female = "female"
 
 
 class UserCreate(BaseModel):
@@ -32,7 +34,7 @@ class UserCreate(BaseModel):
         description="Возраст пользователя",
         examples=[25]
     )
-    sex: Literal["male", "female"] = Field(
+    sex: SexEnum = Field(
         ..., 
         description="Пол пользователя",
         examples=["male"]
@@ -67,7 +69,7 @@ class UserCreated(BaseModel):
 class UserResponse(UserCreated):
     """Полная модель ответа для GET и PUT."""
     age: int
-    sex: Literal["male", "female"]
+    sex: SexEnum
 
 
 class ErrorResponse(BaseModel):
