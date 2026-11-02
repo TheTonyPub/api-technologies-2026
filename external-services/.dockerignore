@@ -1,0 +1,4 @@
+models/artifacts
+tests
+**/__pycache__
+.env

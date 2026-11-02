@@ -1,0 +1,43 @@
+# Вариант для уже установленного на сервере Caddy: моки слушают 127.0.0.1:18101..18105.
+# Добавить этот блок в системный Caddyfile и сделать caddy reload.
+api.external-services.dataprosvet.ru {
+	encode zstd gzip
+	request_body {
+		max_size 2MB
+	}
+	header -Server
+
+	redir /abs /abs/docs
+	redir /abs/ /abs/docs
+	handle_path /abs/* {
+		reverse_proxy 127.0.0.1:18101
+	}
+
+	redir /client-data /client-data/docs
+	redir /client-data/ /client-data/docs
+	handle_path /client-data/* {
+		reverse_proxy 127.0.0.1:18102
+	}
+
+	redir /spark /spark/
+	handle_path /spark/* {
+		reverse_proxy 127.0.0.1:18103
+	}
+
+	redir /monitoring /monitoring/docs
+	redir /monitoring/ /monitoring/docs
+	handle_path /monitoring/* {
+		reverse_proxy 127.0.0.1:18104
+	}
+
+	redir /notify /notify/docs
+	redir /notify/ /notify/docs
+	handle_path /notify/* {
+		reverse_proxy 127.0.0.1:18105
+	}
+
+	handle {
+		root * /opt/external-services/caddy/site
+		file_server
+	}
+}

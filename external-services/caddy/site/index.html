@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Внешние сервисы курса</title>
+<style>
+  :root { --bg: #ffffff; --fg: #1d1d1f; --muted: #5f6368; --line: #e3e3e6; --accent: #1a5fb4; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #17181a; --fg: #ececee; --muted: #a0a3a8; --line: #2f3135; --accent: #8ab4f8; }
+  }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 32px 16px 48px; }
+  h1 { font-size: 1.6rem; margin: 0 0 8px; }
+  p.lead { color: var(--muted); margin: 0 0 24px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: .85rem; color: var(--muted); font-weight: 600; }
+  a { color: var(--accent); }
+  code { font-size: .9em; }
+  @media (max-width: 600px) { th:nth-child(3), td:nth-child(3) { display: none; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Внешние сервисы курса «API-технологии»</h1>
+  <p class="lead">Учебные моки внешних систем для командных проектов. Все данные вымышленные и генерируются
+    одинаково для всех. Доступ по ключу команды в заголовке <code>X-API-Key</code>.</p>
+  <table>
+    <tr><th>Сервис</th><th>Документация</th><th>Кейс</th></tr>
+    <tr><td>АБС банка</td><td><a href="/abs/docs">/abs/docs</a></td><td>Антифрод, СПАРК</td></tr>
+    <tr><td>Бюро данных о клиентах</td><td><a href="/client-data/docs">/client-data/docs</a></td><td>Антифрод</td></tr>
+    <tr><td>СПАРК (SOAP)</td><td><a href="/spark/">/spark/</a> · <a href="/spark/ws?wsdl">WSDL</a></td><td>СПАРК</td></tr>
+    <tr><td>Мониторинг серверов ИС</td><td><a href="/monitoring/docs">/monitoring/docs</a></td><td>Прогноз мощности</td></tr>
+    <tr><td>Уведомления (SendGrid, FCM)</td><td><a href="/notify/docs">/notify/docs</a></td><td>Прогноз мощности</td></tr>
+  </table>
+</main>
+</body>
+</html>

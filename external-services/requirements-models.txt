@@ -1,0 +1,5 @@
+# Для обучения моделей (python -m models.train_models) и для загрузки артефактов .dill
+scikit-learn==1.8.0
+dill==0.4.0
+pandas==2.3.3
+numpy==2.1.3

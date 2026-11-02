@@ -1,0 +1,41 @@
+{$DOMAIN} {
+	encode zstd gzip
+	request_body {
+		max_size 2MB
+	}
+	header -Server
+
+	redir /abs /abs/docs
+	redir /abs/ /abs/docs
+	handle_path /abs/* {
+		reverse_proxy abs:8000
+	}
+
+	redir /client-data /client-data/docs
+	redir /client-data/ /client-data/docs
+	handle_path /client-data/* {
+		reverse_proxy client-data:8000
+	}
+
+	redir /spark /spark/
+	handle_path /spark/* {
+		reverse_proxy spark:8000
+	}
+
+	redir /monitoring /monitoring/docs
+	redir /monitoring/ /monitoring/docs
+	handle_path /monitoring/* {
+		reverse_proxy monitoring:8000
+	}
+
+	redir /notify /notify/docs
+	redir /notify/ /notify/docs
+	handle_path /notify/* {
+		reverse_proxy notify:8000
+	}
+
+	handle {
+		root * /srv/site
+		file_server
+	}
+}

@@ -1,0 +1,53 @@
+x-mock: &mock
+  build: .
+  image: external-services-mocks:latest
+  restart: unless-stopped
+  env_file: .env
+  networks: [mocks]
+
+services:
+  abs:
+    <<: *mock
+    environment: {MOCK_MODULE: abs, ROOT_PATH: /abs}
+    ports: ["127.0.0.1:18101:8000"]
+  client-data:
+    <<: *mock
+    environment: {MOCK_MODULE: client_data, ROOT_PATH: /client-data}
+    ports: ["127.0.0.1:18102:8000"]
+  spark:
+    <<: *mock
+    environment: {MOCK_MODULE: spark, ROOT_PATH: /spark, SPARK_PUBLIC_URL: "https://${DOMAIN}/spark/ws"}
+    ports: ["127.0.0.1:18103:8000"]
+  monitoring:
+    <<: *mock
+    environment: {MOCK_MODULE: monitoring, ROOT_PATH: /monitoring}
+    ports: ["127.0.0.1:18104:8000"]
+  notify:
+    <<: *mock
+    environment: {MOCK_MODULE: notify, ROOT_PATH: /notify, NOTIFY_DB: /data/notify.sqlite3}
+    ports: ["127.0.0.1:18105:8000"]
+    volumes: [notify-data:/data]
+
+  # Caddy выпускает TLS-сертификат для DOMAIN сам. Если на сервере уже есть свой Caddy,
+  # этот сервис не запускают (docker compose up abs client-data spark monitoring notify),
+  # а в системный Caddyfile добавляют caddy/Caddyfile.host.
+  caddy:
+    image: caddy:2.10.2
+    restart: unless-stopped
+    env_file: .env
+    ports: ["80:80", "443:443", "443:443/udp"]
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy/site:/srv/site:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks: [mocks]
+    depends_on: [abs, client-data, spark, monitoring, notify]
+
+networks:
+  mocks: {}
+
+volumes:
+  notify-data: {}
+  caddy-data: {}
+  caddy-config: {}
