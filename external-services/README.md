@@ -111,6 +111,17 @@ verdict = int(score >= meta["threshold"])
 Описание каждого признака — в `meta["feature_doc"]`. Модели обучены на данных этих же моков:
 `python -m models.train_models` (результат в `models/artifacts/`, в git не хранится).
 
+## Эталонные ответы для проверки
+
+Данные моков детерминированы, поэтому что должна показать система команды, можно посчитать заранее
+той же формулой и теми же моделями. Это эталон для сценария проверки на защите (и для будущего CI):
+
+```sh
+python -m tools.expected capacity --date 2026-11-19                 # какие серверы должны получить алерты
+python -m tools.expected antifraud --from 2026-11-19T09:00:00Z      # precision/recall за час потока live
+python -m tools.expected spark --at 2026-11-19T09:00:00Z --since 2026-11-12T00:00:00Z  # компании, клиенты, изменения
+```
+
 ## Запуск
 
 ```sh
@@ -131,5 +142,6 @@ mocks/common/   ключи, сбои, лимиты, генераторы: bank.p
 mocks/<сервис>/app.py   FastAPI-приложение мока (spark — SOAP поверх FastAPI + lxml, WSDL в spark/wsdl.py)
 mocks/monitoring/metrics.py   формула метрик серверов
 models/train_models.py   обучение трёх моделей .dill
+tools/expected.py   эталонные ответы для сценария проверки
 caddy/   Caddyfile, вариант для системного Caddy, стартовая страница
 ```
