@@ -44,8 +44,9 @@ services:
     <<: *app
     environment:
       MOCK_SCENARIO: ${MOCK_SCENARIO:-}
+      LOADER_DRY_RUN: ${LOADER_DRY_RUN:-false}
     build: { context: ., dockerfile: services/loader/Dockerfile }
-    ports: ["8003:8003"]
+    ports: ["127.0.0.1:8003:8003"]
     depends_on:
       postgres: { condition: service_healthy }
     healthcheck:

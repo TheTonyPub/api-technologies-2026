@@ -1,0 +1,46 @@
+name: CI
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: loader
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: loader_test
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd "pg_isready -U loader -d loader_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: services/loader/requirements.txt
+      - name: Install Loader dependencies
+        run: python -m pip install -r services/loader/requirements.txt
+      - name: Run tests including PgStore
+        env:
+          LOADER_TEST_DATABASE_URL: "postgresql://loader:test@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/loader_test"
+        run: python scripts/dev.py test
+      - name: Validate Compose configuration
+        run: |
+          cp .env.example .env
+          docker compose -f docker-compose.yml -f compose.monitoring.yml config --quiet
+      - name: Build Loader image
+        run: docker build --file services/loader/Dockerfile --tag loader:ci .

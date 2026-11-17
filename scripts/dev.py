@@ -4,7 +4,7 @@
   python scripts/dev.py local-env        создать .env.local из .env (localhost вместо имён контейнеров)
   python scripts/dev.py proto            сгенерировать gRPC-заглушки в .gen/
   python scripts/dev.py <сервис>         запустить СВОЙ сервис на хосте (базы поднять: make db)
-  python scripts/dev.py test             юнит-тесты (без Docker и внешних библиотек)
+  python scripts/dev.py test             тесты (зависимости: services/loader/requirements.txt)
 Сервисы: gateway, enrichment, scoring, loader, client-info, group-companies, ml-model
 """
 import os

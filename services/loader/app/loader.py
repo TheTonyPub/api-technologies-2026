@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from . import spark_parse
+from .metrics import COMPANIES, COMPANY_DURATION, observe_run
 from .spark_errors import AuthFailed, LoadIncomplete, SkipCompany
 from .store import PgStore
 
@@ -25,6 +26,11 @@ log = logging.getLogger("loader")
 
 progress = {"total": 0, "done": 0, "skipped": 0, "failed": 0, "failed_sample": []}   # показываем в GET /status
 _plock = threading.Lock()
+
+
+def initial_progress() -> dict:
+    with _plock:
+        return progress.copy()
 
 
 def utc_now() -> datetime:
@@ -58,16 +64,25 @@ def fetch_row(client, inn: str):
     return row, spark_parse.group_name_of(group), spark_parse.actual_date_of(report)
 
 
-def process_inns(client, store, inns: list, now: datetime, workers: int = 8, valid_from_actual: bool = True) -> BatchResult:
+def process_inns(client, store, inns: list, now: datetime, workers: int = 8, valid_from_actual: bool = True,
+                 *, track_initial_progress: bool = False) -> BatchResult:
     result = BatchResult()
 
+    @COMPANY_DURATION.time()
     def work(inn):
-        fetched = fetch_row(client, inn)
-        if fetched is None:
-            return None
-        row, group_name, actual_date = fetched
-        # valid_from новой версии: ActualDate из отчёта (момент, с которого состояние актуально) или время загрузки
-        return store.save(row, group_name, actual_date if (valid_from_actual and actual_date) else now)
+        try:
+            fetched = fetch_row(client, inn)
+            if fetched is None:
+                COMPANIES.labels("skipped").inc()
+                return None
+            row, group_name, actual_date = fetched
+            valid_from = actual_date if valid_from_actual and actual_date else now
+            created = store.save(row, group_name, valid_from)
+        except Exception:
+            COMPANIES.labels("failed").inc()
+            raise
+        COMPANIES.labels("created" if created else "unchanged").inc()
+        return created
 
     with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
         futures = {pool.submit(work, inn): inn for inn in inns}
@@ -82,20 +97,23 @@ def process_inns(client, store, inns: list, now: datetime, workers: int = 8, val
             except Exception as err:   # одна плохая запись не должна останавливать остальные
                 result.failed.append((inn, err))
                 log.warning("ИНН %s не загружен: %s", inn, err)
-                with _plock:
-                    progress["failed"] += 1
-                    progress["failed_sample"] = [i for i, _ in result.failed][:20]
+                if track_initial_progress:
+                    with _plock:
+                        progress["failed"] += 1
+                        progress["failed_sample"] = [i for i, _ in result.failed[:20]]
             else:
                 if outcome is None:
                     result.skipped.append(inn)
-                    with _plock:
-                        progress["skipped"] += 1
+                    if track_initial_progress:
+                        with _plock:
+                            progress["skipped"] += 1
                 else:
                     result.ok += 1
                     if outcome:
                         result.created.append(inn)
-                    with _plock:
-                        progress["done"] += 1
+                    if track_initial_progress:
+                        with _plock:
+                            progress["done"] += 1
             if n % 100 == 0:
                 log.info("обработано %d из %d", n, len(inns))
     return result
@@ -106,6 +124,7 @@ def failed_message(prefix: str, result: BatchResult, total: int) -> str:
     return f"{prefix}: не загружено {len(result.failed)} из {total}. Например: {sample}"
 
 
+@observe_run("initial")
 def initial_load(client, store=None, workers: int = 8, valid_from_actual: bool = True):
     store = store or PgStore()
     # время начала берём от ПЕРВОГО запуска, чтобы после падения оно не сдвигалось
@@ -125,7 +144,8 @@ def initial_load(client, store=None, workers: int = 8, valid_from_actual: bool =
         progress.update(total=len(all_inns), done=len(all_inns) - len(todo), skipped=0, failed=0, failed_sample=[])
     log.info("первичная загрузка: всего %d, уже есть %d, грузим %d", len(all_inns), len(have), len(todo))
 
-    result = process_inns(client, store, todo, started_dt, workers, valid_from_actual)
+    result = process_inns(client, store, todo, started_dt, workers, valid_from_actual,
+                          track_initial_progress=True)
     if result.failed:
         raise LoadIncomplete(failed_message("первичная загрузка", result, len(todo)))
 

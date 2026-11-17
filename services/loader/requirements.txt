@@ -4,3 +4,4 @@ zeep
 requests
 psycopg[binary]>=3.2
 pydantic-settings
+prometheus-client>=0.21,<1

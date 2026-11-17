@@ -1,6 +1,7 @@
 """Логика SOAP-клиента (сессия, повторы, пейджинг) на поддельном сервисе. Сеть и настоящий СПАРК не нужны."""
 import threading
 import unittest
+from datetime import datetime, timezone
 from unittest import mock
 
 from _stubs import install_env, install_stubs
@@ -12,7 +13,9 @@ from lxml import etree                              # noqa: E402
 from zeep.exceptions import Fault, TransportError   # noqa: E402
 
 from app import soap_client as sc                   # noqa: E402
+from app.incremental import incremental_load        # noqa: E402
 from app.spark_errors import AuthFailed, SkipCompany, SparkBadRequest, SparkUnavailable  # noqa: E402
+from app.store import DryRunStore                    # noqa: E402
 
 
 def fault(code, message="boom"):
@@ -67,6 +70,10 @@ class SoapClientTests(unittest.TestCase):
         patcher = mock.patch.object(sc.time, "sleep", lambda s: self.sleeps.append(s))
         patcher.start()
         self.addCleanup(patcher.stop)
+        settings = mock.patch.multiple(sc.settings, spark_login="login", spark_password="secret",
+                                       spark_page_size=0)
+        settings.start()
+        self.addCleanup(settings.stop)
         self.fake = FakeSpark()
         self.client = make_client(self.fake)
 
@@ -201,6 +208,18 @@ class SoapClientTests(unittest.TestCase):
         self.fake.script["GetCompanyList"] = [self.page("7700000001"), {"Companies": []}]
         self.assertEqual(self.client.get_all_inns(), ["7700000001"])
 
+    def test_list_rejects_empty_page_before_total(self):
+        self.fake.script["GetCompanyList"] = [
+            self.page("7700000001", total=2), {"Companies": []},
+        ]
+        with self.assertRaises(SparkUnavailable):
+            self.client.get_all_inns()
+
+    def test_list_rejects_exhausted_page_limit(self):
+        self.fake.script["GetCompanyList"] = [self.page("7700000001")]
+        with self.assertRaises(SparkUnavailable):
+            self.client.get_all_inns(max_pages=1)
+
     def test_page_size_is_sent_only_when_configured(self):
         self.fake.script["GetCompanyList"] = [self.page("7700000001", total=1)]
         self.client.get_all_inns()
@@ -227,7 +246,6 @@ class SoapClientTests(unittest.TestCase):
 
     def test_changed_follows_pages_and_counts_changes_not_companies(self):
         """Total = число изменений; у одной компании их может быть несколько, ИНН в итоге уникальные."""
-        from datetime import datetime, timezone
         self.fake.script["GetChangedCompanies"] = [
             self.changes(("7700000001", "head"), ("7700000002", "address"), total=4),
             self.changes(("7700000001", "status"), ("7700000003", "group"), total=4),
@@ -238,6 +256,19 @@ class SoapClientTests(unittest.TestCase):
         self.assertEqual(len(calls), 2)
         self.assertEqual([c["Page"] for c in calls], [1, 2])
         self.assertTrue(all(c["Since"] == since for c in calls))
+
+    def test_repeated_change_page_does_not_advance_cursor(self):
+        since = datetime(2026, 11, 10, tzinfo=timezone.utc).isoformat()
+        for total in (2, None):
+            with self.subTest(total=total):
+                page = self.changes(("7700000001", "head"), total=total)
+                self.fake.script["GetChangedCompanies"] = [page, page]
+                store = DryRunStore()
+                store.set_state("last_sync_at", since)
+                with self.assertRaises(SparkUnavailable):
+                    incremental_load(self.client, store)
+                self.assertEqual(store.get_state("last_sync_at"), since)
+                self.assertEqual(store.current_inns(), set())
 
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@ import threading
 from datetime import datetime
 
 from .loader import failed_message, process_inns, utc_now
+from .metrics import observe_run
 from .spark_errors import LoadIncomplete
 from .store import PgStore
 
@@ -16,6 +17,7 @@ log = logging.getLogger("incremental")
 sync_lock = threading.Lock()   # расписание и POST /sync не должны идти одновременно
 
 
+@observe_run("incremental")
 def incremental_load(client, store=None, workers: int = 8, valid_from_actual: bool = True) -> dict:
     store = store or PgStore()
     with sync_lock:

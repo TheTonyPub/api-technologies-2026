@@ -8,6 +8,10 @@ import logging
 log = logging.getLogger("loader.store")
 
 
+def merge_changed_inns(inns: list[str], previous: list[str], keep: int = 100) -> list[str]:
+    return list(dict.fromkeys(inns + previous))[:keep]
+
+
 class PgStore:
     def get_state(self, key):
         from . import db
@@ -57,7 +61,7 @@ class DryRunStore:
     def add_changed_inns(self, inns: list, keep: int = 100):
         if inns:
             old = json.loads(self.state.get("changed_inns") or "[]")
-            self.state["changed_inns"] = json.dumps(list(dict.fromkeys(list(inns) + old))[:keep])
+            self.state["changed_inns"] = json.dumps(merge_changed_inns(list(inns), old, keep))
 
     def save(self, row: dict, group_name, now) -> bool:
         changed = self.rows.get(row["inn"]) != row

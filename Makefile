@@ -13,7 +13,7 @@ db:
 	docker compose up -d postgres redis
 
 smoke:
-	./scripts/smoke.sh
+	bash scripts/smoke.sh
 
 test:
 	python scripts/dev.py test

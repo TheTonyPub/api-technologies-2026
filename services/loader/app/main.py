@@ -5,21 +5,22 @@ import uuid
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from .config import settings
+from .metrics import observe_run
 from .store import make_store
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("loader")
-_stop = threading.Event()
 
 store = make_store(settings.loader_dry_run)
 VALID_FROM_ACTUAL = settings.scd2_valid_from.strip().lower() != "load"   # по умолчанию valid_from = ActualDate
 state = {"client": None, "last_error": None}   # общий SparkClient для фонового цикла и POST /sync
 
 
-def run_forever():
+def run_forever(stop: threading.Event):
     """Authenticate -> первичная загрузка (если не было) -> инкремент по расписанию.
     Любая ошибка (мок/БД недоступны) = пауза с backoff и новая попытка, процесс не падает."""
     from .incremental import incremental_load
@@ -27,36 +28,41 @@ def run_forever():
     from .soap_client import AuthFailed, SparkClient
 
     delay = 2
-    while not _stop.is_set():
+    while not stop.is_set():
         try:
-            client = SparkClient()
-            client.authenticate()
+            with observe_run("connect"):
+                client = SparkClient()
+                client.authenticate()
             state["client"] = client
-            delay = 2
             if store.get_state("initial_done") != "true":
                 initial_load(client, store, settings.loader_workers, VALID_FROM_ACTUAL)
-            while not _stop.is_set():
+            while not stop.is_set():
                 incremental_load(client, store, settings.loader_workers, VALID_FROM_ACTUAL)
+                delay = 2
                 state["last_error"] = None
-                _stop.wait(settings.incremental_interval_sec)
+                stop.wait(settings.incremental_interval_sec)
         except AuthFailed as e:
             # "громко": CRITICAL в лог и текст ошибки в /status. Ждём дольше, логин сам не исправится.
+            state["client"] = None
             state["last_error"] = str(e)
             log.critical("!!! %s. Исправь .env и перезапусти loader !!!", e)
-            _stop.wait(60)
+            stop.wait(60)
         except Exception as e:
             state["last_error"] = f"{type(e).__name__}: {e}"
             log.exception("цикл загрузки упал, повтор через %s с", delay)
-            _stop.wait(delay)
+            stop.wait(delay)
             delay = min(delay * 2, 60)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    t = threading.Thread(target=run_forever, daemon=True, name="loader")
+    stop = threading.Event()
+    t = threading.Thread(target=run_forever, args=(stop,), daemon=True, name="loader")
     t.start()
-    yield
-    _stop.set()
+    try:
+        yield
+    finally:
+        stop.set()
 
 
 app = FastAPI(title="loader", lifespan=lifespan)
@@ -67,10 +73,15 @@ def health():
     return {"status": "ok"}
 
 
+@app.get("/metrics", include_in_schema=False)
+def metrics():
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
 @app.get("/status")
 def status():
     """Для demo.sh и README: сколько загружено и закончена ли первичная загрузка."""
-    from .loader import progress
+    from .loader import initial_progress
     try:
         initial_versions = store.get_state("initial_versions")
         duration = store.get_state("initial_duration_sec")
@@ -82,7 +93,7 @@ def status():
                 "initial_skipped": int(skipped) if skipped else None,
                 "last_sync_at": store.get_state("last_sync_at"),
                 "changed_inns": json.loads(store.get_state("changed_inns") or "[]"),
-                "progress": progress,
+                "progress": initial_progress(),
                 "last_error": state["last_error"],
                 "dry_run": settings.loader_dry_run,
                 **store.counts()}
@@ -101,11 +112,14 @@ def _error(status: int, code: str, message: str):
 def sync():
     """Запустить инкремент сейчас, не дожидаясь расписания. Возвращает число новых версий SCD2."""
     from .incremental import incremental_load
-    if store.get_state("initial_done") != "true" or state["client"] is None:
-        return _error(409, "INVALID_REQUEST", "Первичная загрузка ещё не закончена")
     try:
-        result = incremental_load(state["client"], store, settings.loader_workers, VALID_FROM_ACTUAL)
+        if store.get_state("initial_done") != "true":
+            return _error(409, "INVALID_REQUEST", "Первичная загрузка ещё не закончена")
+        client = state["client"]
+        if client is None:
+            return _error(503, "SERVICE_UNAVAILABLE", "Нет активной сессии СПАРК")
+        result = incremental_load(client, store, settings.loader_workers, VALID_FROM_ACTUAL)
+        return {**result, **store.counts()}
     except Exception as e:
         log.exception("POST /sync упал")
         return _error(503, "SERVICE_UNAVAILABLE", f"Инкремент не выполнен: {e}")
-    return {**result, **store.counts()}

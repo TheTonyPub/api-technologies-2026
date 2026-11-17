@@ -138,6 +138,9 @@ docker compose up --build   # или: make up
 локально можно положить файл в `./models/`. Первичная загрузка идёт несколько минут: `make smoke` / `GET :8003/status`.
 Сценарий проверки: `./scripts/demo.sh` (итоги в `demo-result.json`), сбои: `MOCK_SCENARIO=unavailable ./scripts/demo.sh`.
 
+Сбор метрик и запуск дашборда описаны в [документации Loader](services/loader/README.md#мониторинг).
+Тесты и сборка образа Loader запускаются в [GitHub Actions](.github/workflows/ci.yml).
+
 ### Порты
 | Сервис | Порт |
 |---|---|

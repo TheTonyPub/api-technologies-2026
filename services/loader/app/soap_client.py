@@ -30,6 +30,7 @@ from zeep.transports import Transport
 
 from . import spark_parse
 from .config import settings
+from .metrics import SOAP_RETRIES
 from .rate_limiter import RateLimiter
 from .spark_errors import AuthFailed, SkipCompany, SparkBadRequest, SparkUnavailable  # noqa: F401 (реэкспорт)
 
@@ -207,6 +208,7 @@ class SparkClient:
                 pause, last = backoff(attempt), f"{type(e).__name__}: {e}"
             log.warning("%s: %s, попытка %d из %d", _describe(op, params), last, attempt + 1, MAX_ATTEMPTS)
             if attempt < MAX_ATTEMPTS - 1:
+                SOAP_RETRIES.labels(op).inc()
                 time.sleep(pause)
         raise SparkUnavailable(f"{_describe(op, params)}: не удалось после {MAX_ATTEMPTS} попыток, последняя причина: {last}")
 
@@ -224,9 +226,10 @@ class SparkClient:
     def _collect_pages(self, op: str, extra: dict | None = None, max_pages: int = 1000) -> list:
         """Все записи постраничной операции (список компаний, список изменений).
         Ответ вида {"Total": N, "Page": 1, "Companies": {"Company": [...]}}: Total это число записей во всех страницах.
-        Останавливаемся, когда набрали Total записей, страница пустая или сервер повторил ту же страницу
-        (так не зациклимся, даже если Total не пришёл)."""
+        Если сервер заявил Total, неполный результат считается ошибкой.
+        Для списка компаний без Total повтор страницы сохраняет прежнее поведение."""
         items_all, seen_pages, paged = [], set(), True
+        expected_total = None
         for page in range(1, max_pages + 1):
             params = dict(extra or {})
             if paged:
@@ -239,19 +242,31 @@ class SparkClient:
                 log.warning("у %s нет параметра %s, берём ответ целиком", op, P_PAGE)
                 paged, resp = False, self._request(op, dict(extra or {}))
             items = spark_parse.find_list(resp)
+            total = spark_parse.pick(resp, "Total", "TotalCount")
+            if total is not None:
+                try:
+                    total = int(total)
+                except (TypeError, ValueError, OverflowError):
+                    raise SparkUnavailable(f"{op}: некорректный Total в ответе") from None
+                if total < 0:
+                    raise SparkUnavailable(f"{op}: отрицательный Total в ответе")
+                expected_total = total if expected_total is None else max(expected_total, total)
             signature = repr(items)
-            if not items or signature in seen_pages:
+            repeated = signature in seen_pages
+            if repeated and expected_total is None and op == OP_CHANGED:
+                raise SparkUnavailable(f"{op}: повтор страницы {page} без Total")
+            if not items or repeated:
                 break
             seen_pages.add(signature)
             items_all += items
             if not paged:
                 break
-            total = spark_parse.pick(resp, "Total", "TotalCount")
-            try:
-                if total is not None and len(items_all) >= int(total):
-                    break
-            except (TypeError, ValueError):
-                pass
+            if expected_total is not None and len(items_all) >= expected_total:
+                break
+        else:
+            raise SparkUnavailable(f"{op}: достигнут лимит страниц ({max_pages})")
+        if expected_total is not None and len(items_all) < expected_total:
+            raise SparkUnavailable(f"{op}: получено {len(items_all)} записей из {expected_total}")
         return items_all
 
     def get_all_inns(self, max_pages: int = 1000) -> list[str]:
