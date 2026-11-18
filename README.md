@@ -139,7 +139,9 @@ docker compose up --build   # или: make up
 Сценарий проверки: `./scripts/demo.sh` (итоги в `demo-result.json`), сбои: `MOCK_SCENARIO=unavailable ./scripts/demo.sh`.
 
 Сбор метрик и запуск дашборда описаны в [документации Loader](services/loader/README.md#мониторинг).
-Тесты и сборка образа Loader запускаются в [GitHub Actions](.github/workflows/ci.yml).
+Тесты Loader, SCD2 и Enrichment и сборка образов запускаются в [GitHub Actions](.github/workflows/ci.yml).
+
+Для событий об изменениях компаний есть отдельное [демо Kafka и Go](services/company-events/README.md). Обработчик переносит события из `company.changes` в `company.audit` и фиксирует результат вместе с оффсетом. Пока входные события отправляются вручную. Подключение Loader и PostgreSQL outbox запланировано следующим этапом.
 
 ### Порты
 | Сервис | Порт |
