@@ -26,7 +26,8 @@ def build_features(company: dict, members: list[dict] | None, as_of: date | None
     group_size = len(members)
     bank_others = sum(1 for m in members if m["inn"] != company["inn"] and m.get("is_bank_client"))
     numeric = {
-        "companyAgeMonths": float(full_months(company["reg_date"], as_of)),
+        # нет даты регистрации, то есть возраст просто 0 (иначе упадём с 500)
+        "companyAgeMonths": float(full_months(company["reg_date"], as_of)) if company.get("reg_date") else 0.0,
         "groupSize": float(group_size),
         "groupBankClientsCount": float(bank_others),
     }
