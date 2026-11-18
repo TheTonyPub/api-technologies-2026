@@ -6,4 +6,8 @@ __pycache__/
 .env
 build/
 cmake-build-*/
+.env.*
+!.env.example
 
+models/
+data/
