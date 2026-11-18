@@ -20,6 +20,7 @@ def load_company_for_scoring(inn: str) -> dict | None:
     SQL: строка из company_snapshot по inn; если group_id не NULL — все строки с этим group_id."""
     try:
         with psycopg.connect(settings.database_url, connect_timeout=2) as conn:
+            conn.isolation_level = psycopg.IsolationLevel.REPEATABLE_READ
             row = conn.execute(SQL_COMPANY, (inn,)).fetchone()
             if row is None:
                 return None

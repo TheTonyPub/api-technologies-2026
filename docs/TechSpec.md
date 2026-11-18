@@ -89,7 +89,7 @@ docker compose logs -f --tail=50 gateway  # логи одного сервиса
 docker compose restart loader             # перезапуск одного сервиса
 docker compose down -v                    # остановить и удалить данные БД
 bash scripts/smoke.sh                     # быстрая проверка, что все сервисы отвечают
-./scripts/demo.sh                         # сценарий проверки
+bash scripts/demo.sh                      # сценарий проверки
 python scripts/dev.py test                # юнит-тесты без Docker
 ```
 
@@ -626,7 +626,7 @@ curl -H "Authorization: Bearer change-me" "localhost:8000/v1/companies/999000002
 2. Сценарий проверки:
 
    ```sh
-   ./scripts/demo.sh
+   bash scripts/demo.sh
    ```
 
    Он проходит, создаёт `demo-result.json`, числа совпадают с `tools/expected.py`: 1000 компаний, 73 группы, 451 клиент банка, новые версии SCD2 равны значению `changes`.
@@ -634,7 +634,7 @@ curl -H "Authorization: Bearer change-me" "localhost:8000/v1/companies/999000002
 3. Сбои. Те же шаги с `MOCK_SCENARIO=unavailable`, `ratelimit` и `timeout`: сервисы не падают и отвечают ошибкой по контракту.
 
    ```sh
-   MOCK_SCENARIO=unavailable ./scripts/demo.sh
+   MOCK_SCENARIO=unavailable docker compose up -d loader enrichment
    ```
 
 4. Повторный запуск загрузки не меняет число записей, после `docker compose restart` данные на месте.

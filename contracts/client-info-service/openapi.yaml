@@ -38,6 +38,11 @@ paths:
           headers:
             X-Request-Id:
               $ref: '#/components/headers/X-Request-Id'
+            X-Cache:
+              description: Результат поиска карточки в Redis.
+              schema:
+                type: string
+                enum: [HIT, MISS]
           content:
             application/json:
               schema:

@@ -10,7 +10,8 @@ docker compose up --build   # или: make up
 ```
 Модель `company-scoring-v1.dill` скачивается сервисом `ml-model` по `MODEL_URL` (в git не хранится);
 локально можно положить файл в `./models/`. Первичная загрузка идёт несколько минут: `make smoke` / `GET :8003/status`.
-Сценарий проверки: `./scripts/demo.sh` (итоги в `demo-result.json`), сбои: `MOCK_SCENARIO=unavailable ./scripts/demo.sh`.
+Сценарий проверки запускается командой `bash scripts/demo.sh` и пишет итоги в `demo-result.json`.
+Для проверки сбоя СПАРК передай `MOCK_SCENARIO=unavailable` при запуске Loader через Compose.
 
 Сбор метрик и запуск дашборда описаны в [документации Loader](../services/loader/README.md#мониторинг).
 Тесты и сборка образов запускаются в [GitHub Actions](../.github/workflows/ci.yml).

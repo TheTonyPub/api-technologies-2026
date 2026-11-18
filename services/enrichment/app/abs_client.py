@@ -1,9 +1,4 @@
-"""клиент АБС, POST /abs/v1/legal-clients:lookup, пачки до 500 ИНН
-
-todo: сверить с https://api.external-services.dataprosvet.ru/abs/docs
-формат запроса и ответа в ТЗ не описан, пока тут догадки (лежат в двух функциях, build_payload и parse_response)
-проверка простая, после сборки в company_snapshot должно быть ровно 451 клиент банка из 1000
-"""
+"""Пакетный клиент АБС для POST /v1/legal-clients:lookup."""
 from __future__ import annotations
 
 import logging
@@ -20,31 +15,36 @@ BATCH_SIZE = 500
 MAX_ATTEMPTS = int(os.getenv("ABS_MAX_ATTEMPTS", "6"))
 TIMEOUT_SEC = float(os.getenv("ABS_TIMEOUT_SEC", "10"))
 MIN_INTERVAL = 1 / 20  # лимит АБС 20 rps на команду
-BASE_URL = os.getenv("ABS_BASE_URL", "https://api.external-services.dataprosvet.ru").rstrip("/")
-LOOKUP_PATH = "/abs/v1/legal-clients:lookup"
+base_override = os.getenv("ABS_BASE_URL")
+ABS_URL = f"{base_override.rstrip('/')}/abs" if base_override else config.settings.abs_url.rstrip("/")
+LOOKUP_URL = f"{ABS_URL}/v1/legal-clients:lookup"
 
-_FLAG_KEYS = ("isBankClient", "isClient", "bankClient", "client", "found", "exists")
-_LIST_KEYS = ("clients", "results", "items", "data", "legalClients")
+_FLAG_KEYS = ("is_bank_client", "isBankClient", "isClient", "bankClient", "found", "exists", "client")
+_LIST_KEYS = ("items", "clients", "results", "data", "legalClients")
 
 
 def build_payload(inns: list[str]) -> dict:
-    return {"inns": inns}  # пока догадка
+    return {"inns": inns}
 
 
 def parse_response(body, requested: list[str]) -> dict[str, bool]:
-    """отдаём {inn: is_client} по всем requested
-    если булева флага нет, считаем что в ответе перечислены только клиенты (остальные False)
-    todo: сверить с /abs/docs"""
+    """Прочитать флаги из пакетного ответа АБС и совместимых моков."""
     items = body
     if isinstance(body, dict):
-        items = next((body[k] for k in _LIST_KEYS if isinstance(body.get(k), list)), [])
+        items = next((body[k] for k in _LIST_KEYS if isinstance(body.get(k), list)), None)
+    if not isinstance(items, list):
+        raise ValueError("АБС вернул некорректный список")
     result = {inn: False for inn in requested}
     for it in items:
         if isinstance(it, str):
             inn, flag = it, True
-        else:
+        elif isinstance(it, dict) and it.get("inn") is not None:
             inn = str(it.get("inn", ""))
-            flag = next((bool(it[k]) for k in _FLAG_KEYS if k in it), True)
+            flag = next((it[k] for k in _FLAG_KEYS if k in it), True)
+            if not isinstance(flag, bool):
+                raise ValueError("АБС вернул не булев флаг клиента")
+        else:
+            raise ValueError("АБС вернул запись без ИНН")
         if inn in result:
             result[inn] = flag
     return result
@@ -63,7 +63,7 @@ def _post_batch(client: httpx.Client, inns: list[str]) -> dict[str, bool] | None
         pause = min(2 ** attempt * 0.5, 30)
         try:
             resp = client.post(
-                BASE_URL + LOOKUP_PATH, json=build_payload(inns),
+                LOOKUP_URL, json=build_payload(inns),
                 headers=config.abs_headers(), timeout=TIMEOUT_SEC,
             )
         except (httpx.TimeoutException, httpx.TransportError) as e:
@@ -71,7 +71,11 @@ def _post_batch(client: httpx.Client, inns: list[str]) -> dict[str, bool] | None
             time.sleep(pause)
             continue
         if resp.status_code == 200:
-            return parse_response(resp.json(), inns)
+            try:
+                return parse_response(resp.json(), inns)
+            except ValueError:
+                log.warning("АБС вернул некорректный ответ. Пачка пропущена.")
+                return None
         if resp.status_code in (429, 503):
             wait = _retry_after(resp, pause)
             log.warning("АБС %s, жду %.1f c (попытка %d/%d)", resp.status_code, wait, attempt, MAX_ATTEMPTS)

@@ -110,6 +110,26 @@ def test_abs_401_does_not_raise(monkeypatch):
     assert abs_client.lookup(["1"], client=c) == {}
 
 
+def test_abs_lookup_uses_explicit_bank_flag():
+    def handler(req):
+        assert str(req.url) == f"{abs_client.config.settings.abs_url.rstrip('/')}/v1/legal-clients:lookup"
+        assert json.loads(req.content) == {"inns": ["1", "2"]}
+        return httpx.Response(200, json={"items": [
+            {"inn": "1", "is_bank_client": True, "client": {"inn": "1"}},
+            {"inn": "2", "is_bank_client": False, "client": None},
+        ]})
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        assert abs_client.lookup(["1", "2"], client=client) == {"1": True, "2": False}
+
+
+def test_abs_invalid_success_body_does_not_clear_flags():
+    with httpx.Client(transport=httpx.MockTransport(
+        lambda req: httpx.Response(200, json={"unexpected": []}),
+    )) as client:
+        assert abs_client.lookup(["1"], client=client) == {}
+
+
 def test_abs_batches_of_500(monkeypatch):
     sizes = []
     def handler(req):

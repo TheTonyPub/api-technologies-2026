@@ -14,7 +14,13 @@ async def get_json(client: httpx.AsyncClient, url: str, request_id: str,
         raise ApiError(503, "SERVICE_UNAVAILABLE", "Нижестоящий сервис недоступен") from None
 
     if r.status_code == 200:
-        return r.json()
+        try:
+            doc = r.json()
+        except ValueError:
+            doc = None
+        if isinstance(doc, dict):
+            return doc, r.headers.get("X-Cache")
+        raise ApiError(503, "SERVICE_UNAVAILABLE", "Нижестоящий сервис вернул некорректный JSON")
 
     body = None
     try:

@@ -23,5 +23,6 @@ def status():
         "redis_keys": cache.count_keys(),
         "data_as_of": (pipeline.state["data_as_of"] or as_of),
         "ready": bool(pipeline.state["built"]),
+        "last_sync_at": pipeline.state["synced_marker"],
         "last_error": pipeline.state["last_error"],
     }
