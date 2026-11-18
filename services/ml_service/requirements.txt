@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+dill
+pandas
+scikit-learn==1.8.0
+grpcio
+grpcio-tools
+minio
+prometheus-client
