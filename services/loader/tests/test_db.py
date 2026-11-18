@@ -3,6 +3,7 @@ import json
 import os
 import unittest
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 from uuid import uuid4
@@ -46,6 +47,19 @@ class PgStoreTests(unittest.TestCase):
                 "VALUES ('1', 'hash', now(), now(), false), ('2', 'hash', now(), NULL, true)"
             )
         self.assertEqual(self.store.current_inns(), {"2"})
+
+    def test_company_failure_rolls_back_group(self):
+        from psycopg.errors import UndefinedColumn
+
+        now = datetime.now(timezone.utc)
+        company = {"inn": "9980000001", "group_id": "rollback-test"}
+        self.assertTrue(self.store.save(company, "Original group", now))
+        with self.assertRaises(UndefinedColumn):
+            self.store.save({**company, "invalid_column": "x"}, "Changed group", now)
+        with self.db.connect() as conn:
+            self.assertEqual(conn.execute("SELECT group_name FROM company_groups").fetchone(),
+                             ("Original group",))
+        self.assertEqual(self.store.counts(), {"companies": 1, "versions": 1, "groups": 1})
 
     def test_changed_inns_merges_existing_json_with_limit(self):
         self.store.add_changed_inns([])

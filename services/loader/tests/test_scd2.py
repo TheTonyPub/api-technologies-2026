@@ -60,6 +60,8 @@ class Scd2Tests(unittest.TestCase):
             c.close()
             cls.pg_available = True
         except Exception as e:
+            if os.getenv("TEST_DATABASE_URL"):
+                raise
             cls.pg_available = False
             cls.pg_error = e
 

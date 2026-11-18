@@ -1,6 +1,6 @@
 """гоняем цепочку АБС, потом bank_clients, потом company_snapshot, потом Redis
 
-run_forever() запускать в фоновом потоке из main.py (там, где сейчас ждёт wait.py)
+run_forever() запускается в фоновом потоке из main.py
 сначала ждём пока load_state.initial_done станет true, потом собираем срез и кэш
 дальше каждые ENRICH_POLL_SEC сек смотрим load_state.last_sync_at, изменился значит пересобираем всё
 любая ошибка поток не убивает, просто пауза с нарастанием и повтор
@@ -9,7 +9,6 @@ import datetime as dt
 import logging
 import os
 import threading
-import time
 
 from . import abs_client, cache, snapshot
 from .store import connect
@@ -76,14 +75,12 @@ def run_forever(stop: threading.Event | None = None):
         try:
             conn = connect()
             try:
-                if not _is_true(_load_state(conn, "initial_done")):
-                    time.sleep(POLL_SEC)
-                    continue
-                marker = _load_state(conn, "last_sync_at")
-                if not state["built"] or marker != state["synced_marker"]:
-                    log.info("Пересборка среза (last_sync_at=%s)", marker)
-                    rebuild_all(conn)
-                    state["synced_marker"] = marker
+                if _is_true(_load_state(conn, "initial_done")):
+                    marker = _load_state(conn, "last_sync_at")
+                    if not state["built"] or marker != state["synced_marker"]:
+                        log.info("Пересборка среза (last_sync_at=%s)", marker)
+                        rebuild_all(conn)
+                        state["synced_marker"] = marker
                 backoff = 2.0
             finally:
                 conn.close()

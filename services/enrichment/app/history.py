@@ -1,7 +1,4 @@
-"""ручка GET /v1/internal/companies/{inn}/history, все версии компании и что в них менялось
-подключить в main.py одной строкой
-    from .history import router as history_router; app.include_router(history_router)
-"""
+"""История версий компании и изменения её полей."""
 from fastapi import APIRouter, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse

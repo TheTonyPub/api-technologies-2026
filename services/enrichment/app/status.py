@@ -1,8 +1,4 @@
-"""ручка GET /status, числа из БД и Redis плюс признак что сборка уже закончилась
-в main.py подключить одной строкой
-    from .status import router as status_router; app.include_router(status_router)
-если там уже есть заглушка /status, заменить её
-"""
+"""Счётчики PostgreSQL и Redis и состояние сборки витрины."""
 from fastapi import APIRouter
 
 from . import cache, pipeline

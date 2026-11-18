@@ -38,8 +38,8 @@ class PgStore:
         from . import db, scd2
         with db.connect() as conn:
             if row.get("group_id"):
-                scd2.upsert_group(conn, row["group_id"], group_name)
-            return bool(scd2.upsert_company(conn, row, now))
+                scd2.upsert_group(conn, row["group_id"], group_name, commit=False)
+            return scd2.upsert_company(conn, row, now, commit=False)
 
 
 class DryRunStore:

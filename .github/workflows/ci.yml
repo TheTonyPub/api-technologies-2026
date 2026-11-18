@@ -23,6 +23,15 @@ jobs:
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379/tcp
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v6
         with:
@@ -31,16 +40,34 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: services/loader/requirements.txt
-      - name: Install Loader dependencies
-        run: python -m pip install -r services/loader/requirements.txt
-      - name: Run tests including PgStore
+          cache-dependency-path: |
+            services/loader/requirements.txt
+            services/enrichment/requirements.txt
+      - name: Install test dependencies
+        run: python -m pip install -r services/loader/requirements.txt -r services/enrichment/requirements.txt pytest
+      - name: Run Loader, SCD2 and Enrichment tests
         env:
           LOADER_TEST_DATABASE_URL: "postgresql://loader:test@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/loader_test"
-        run: python scripts/dev.py test
+          REDIS_URL: "redis://127.0.0.1:${{ job.services.redis.ports['6379'] }}/0"
+          TEAM_API_KEY: test
+          ABS_URL: http://127.0.0.1:1/abs
+        run: |
+          export DATABASE_URL="$LOADER_TEST_DATABASE_URL"
+          export TEST_DATABASE_URL="$DATABASE_URL"
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          import psycopg
+
+          with psycopg.connect(os.environ["DATABASE_URL"]) as conn:
+              for migration in sorted(Path("db/migrations").glob("*.sql")):
+                  conn.execute(migration.read_text(encoding="utf-8"))
+          PY
+          python scripts/dev.py test
+          PYTHONPATH=services/enrichment:libs/common python -m pytest -q -rs services/enrichment/tests
       - name: Validate Compose configuration
         run: |
           cp .env.example .env
           docker compose -f docker-compose.yml -f compose.monitoring.yml config --quiet
-      - name: Build Loader image
-        run: docker build --file services/loader/Dockerfile --tag loader:ci .
+      - name: Build service images
+        run: docker compose build loader enrichment

@@ -4,6 +4,7 @@
 import datetime as dt
 import json
 import os
+import time
 
 import httpx
 import pytest
@@ -35,6 +36,8 @@ def db(monkeypatch):
         conn = connect()
         r = cache.get_redis(); r.ping()
     except Exception as e:
+        if os.getenv("CI") == "true":
+            raise
         pytest.skip(f"нет Postgres/Redis: {e}")
 
     def clean():
@@ -132,3 +135,63 @@ def test_history_endpoint(db):
     assert body["versions"][0]["validTo"] and body["versions"][1]["isCurrent"] is True
     r = cl.get("/v1/internal/companies/9979999999/history")
     assert r.status_code == 404 and r.json()["code"] == "COMPANY_NOT_FOUND"
+
+
+def test_service_builds_and_refreshes_snapshot(db, monkeypatch):
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    conn, redis = db
+    keys = ["initial_done", "last_sync_at"]
+    previous = conn.execute("SELECT key, value FROM load_state WHERE key = ANY(%s)", (keys,)).fetchall()
+
+    def set_state(key, value):
+        conn.execute(
+            "INSERT INTO load_state (key, value) VALUES (%s, %s) "
+            "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value",
+            (key, value),
+        )
+        conn.commit()
+
+    def wait_until(condition):
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            if condition():
+                return
+            time.sleep(0.05)
+        pytest.fail(f"Фоновая сборка не завершилась: {pipeline.state}")
+
+    monkeypatch.setattr(pipeline, "POLL_SEC", 0.05)
+    monkeypatch.setattr(pipeline, "state",
+                        dict(built=False, data_as_of=None, last_error=None, synced_marker=None))
+    card_key = "company:9970000007"
+    try:
+        set_state("initial_done", "false")
+        set_state("last_sync_at", T0.isoformat())
+        with TestClient(app) as client:
+            response = client.get("/status")
+            assert response.status_code == 200 and response.json()["ready"] is False
+            assert redis.get(card_key) is None
+
+            set_state("initial_done", "true")
+            wait_until(lambda: client.get("/status").json()["ready"])
+            assert client.get("/status").json()["companies"] == N
+            assert json.loads(redis.get(card_key))["legalAddress"] == "г. Москва, д. 7"
+            built_at = conn.execute(
+                "SELECT built_at FROM company_snapshot WHERE inn = %s", ("9970000007",)
+            ).fetchone()[0]
+
+            later = T0 + dt.timedelta(hours=1)
+            scd2.upsert_company(conn, _co(7, legal_address="г. Казань"), later)
+            set_state("last_sync_at", later.isoformat())
+            wait_until(lambda: json.loads(redis.get(card_key))["legalAddress"] == "г. Казань")
+            refreshed_at = conn.execute(
+                "SELECT built_at FROM company_snapshot WHERE inn = %s", ("9970000007",)
+            ).fetchone()[0]
+            assert refreshed_at > built_at
+            assert client.get("/v1/internal/companies/9970000007/history").json()["versionsCount"] == 2
+    finally:
+        conn.execute("DELETE FROM load_state WHERE key = ANY(%s)", (keys,))
+        with conn.cursor() as cur:
+            cur.executemany("INSERT INTO load_state (key, value) VALUES (%s, %s)", previous)
+        conn.commit()

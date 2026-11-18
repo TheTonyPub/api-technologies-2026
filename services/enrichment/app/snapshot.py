@@ -4,6 +4,7 @@
 group_name берём из company_groups
 is_bank_client берём из bank_clients (нет записи, значит false)
 data_as_of это время сборки (параметр)
+built_at это время выполнения SQL пересборки
 остальные колонки берём из текущей версии company_versions, если такая колонка там есть
 колонка среза без источника это ошибка с понятным текстом (значит схема разошлась)
 """
@@ -11,7 +12,6 @@ import logging
 
 log = logging.getLogger("enrichment.snapshot")
 
-# todo: сверить с 001_init.sql
 GROUP_KEY, GROUP_NAME_COL = "group_id", "group_name"
 BANK_FLAG_COL = "is_bank_client"
 
@@ -29,6 +29,8 @@ def build_sql(snapshot_cols, version_cols):
     for col in snapshot_cols:
         if col == "data_as_of":
             select.append("%s")
+        elif col == "built_at":
+            select.append("statement_timestamp()")
         elif col == "group_name":
             select.append(f'g."{GROUP_NAME_COL}"')
         elif col == "is_bank_client":

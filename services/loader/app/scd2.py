@@ -7,7 +7,7 @@ upsert_company(conn, company, now) возвращает bool, True значит 
 company это словарь, ключи как колонки company_versions (без служебных id, valid_from, valid_to, is_current, attrs_hash, их ставит эта функция)
 now это время начала загрузки, одно и то же на весь прогон (см. docs)
 
-подходит и psycopg 3, и psycopg2. каждая функция сама открывает и закрывает транзакцию (commit в конце, rollback при ошибке)
+По умолчанию каждая функция завершает транзакцию сама. С commit=False транзакцией управляет вызывающий код.
 """
 from __future__ import annotations
 
@@ -69,11 +69,14 @@ def _db_value(value):
 class _Tx:
     """одна транзакция, неважно включён autocommit и какой драйвер"""
 
-    def __init__(self, conn):
+    def __init__(self, conn, commit):
         self.conn = conn
+        self.commit = commit
         self.autocommit = bool(getattr(conn, "autocommit", False))
 
     def __enter__(self):
+        if not self.commit and self.autocommit:
+            raise ValueError("commit=False требует соединения без autocommit")
         self.cur = self.conn.cursor()
         if self.autocommit:
             self.cur.execute("BEGIN")
@@ -81,6 +84,8 @@ class _Tx:
 
     def __exit__(self, exc_type, exc, tb):
         try:
+            if not self.commit:
+                return False
             if exc_type is None:
                 if self.autocommit:
                     self.cur.execute("COMMIT")
@@ -96,7 +101,7 @@ class _Tx:
         return False
 
 
-def upsert_company(conn, company: dict, now) -> bool:
+def upsert_company(conn, company: dict, now, *, commit: bool = True) -> bool:
     inn = company.get("inn")
     if not inn:
         raise ValueError("company['inn'] обязателен")
@@ -107,7 +112,7 @@ def upsert_company(conn, company: dict, now) -> bool:
 
     new_hash = compute_attrs_hash(company)
 
-    with _Tx(conn) as cur:
+    with _Tx(conn, commit) as cur:
         # FOR UPDATE по строке, которой ещё нет, ничего не блокирует. то есть
         # работу по одному ИНН держим advisory-замком (живёт до конца транзакции)
         cur.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (inn,))
@@ -137,12 +142,12 @@ def upsert_company(conn, company: dict, now) -> bool:
     return True
 
 
-def upsert_group(conn, group_id, group_name) -> bool:
+def upsert_group(conn, group_id, group_name, *, commit: bool = True) -> bool:
     """обычный upsert, название группы не версионируем (просто перезаписываем)
     возвращаем True если строку создали или название поменялось"""
     if not group_id:
         raise ValueError("group_id обязателен")
-    with _Tx(conn) as cur:
+    with _Tx(conn, commit) as cur:
         cur.execute(
             "INSERT INTO company_groups (group_id, group_name) VALUES (%s, %s) "
             "ON CONFLICT (group_id) DO UPDATE SET group_name = EXCLUDED.group_name "
