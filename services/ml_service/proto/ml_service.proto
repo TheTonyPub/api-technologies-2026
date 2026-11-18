@@ -1,0 +1,32 @@
+
+syntax = "proto3";
+
+package antifraud.ml.v1;
+
+service MLService {
+  rpc CheckTransaction (InferenceRequest) returns (InferenceResponse);
+}
+
+message InferenceRequest {
+  string transaction_id = 1;
+  string client_id = 2;
+  InferenceFeatures features = 3;
+}
+
+message InferenceFeatures {
+  double amount = 1;
+  double avg_amount_30d = 2;
+  int32 tx_count_24h = 3;
+  double geo_risk = 4;
+  double merchant_risk = 5;
+  int32 hour = 6;
+}
+
+message InferenceResponse {
+  string transaction_id = 1;
+  double score = 2;
+  string actual_result = 3;
+  string tool = 4;
+  string version = 5;
+  string action = 6;
+}
