@@ -141,7 +141,7 @@ docker compose up --build   # или: make up
 Сбор метрик и запуск дашборда описаны в [документации Loader](services/loader/README.md#мониторинг).
 Тесты Loader, SCD2 и Enrichment и сборка образов запускаются в [GitHub Actions](.github/workflows/ci.yml).
 
-Для событий об изменениях компаний есть отдельное [демо Kafka и Go](services/company-events/README.md). Обработчик переносит события из `company.changes` в `company.audit` и фиксирует результат вместе с оффсетом. Пока входные события отправляются вручную. Подключение Loader и PostgreSQL outbox запланировано следующим этапом.
+Loader записывает изменения компаний в PostgreSQL outbox. Go-продьюсер отправляет их в `company.changes`, а Go-обработчик переносит события в `company.audit` и фиксирует результат вместе с оффсетом. См. [инструкцию запуска и проверки Kafka](services/company-events/README.md).
 
 ### Порты
 | Сервис | Порт |

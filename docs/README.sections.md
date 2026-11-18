@@ -14,7 +14,7 @@ docker compose up --build   # или: make up
 
 Сбор метрик и запуск дашборда описаны в [документации Loader](../services/loader/README.md#мониторинг).
 Тесты и сборка образов запускаются в [GitHub Actions](../.github/workflows/ci.yml).
-[Демо Kafka и Go](../services/company-events/README.md) показывает перенос тестового события между топиками с транзакцией Kafka и содержит ручную проверку отмены и повторной обработки.
+[Инструкция Kafka и Go](../services/company-events/README.md) описывает доставку событий из PostgreSQL outbox и ручную проверку отмены и повторной обработки между топиками Kafka.
 
 ### Порты
 | Сервис | Порт |

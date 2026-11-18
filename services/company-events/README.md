@@ -17,10 +17,47 @@ Kafka CLI → company.changes → Go processor → company.audit
 Гарантия exactly-once здесь относится к обработке входной записи между двумя
 топиками Kafka. Две входные записи с одним `event_id` будут обработаны отдельно.
 
-Следующий этап — записывать события о новых версиях в PostgreSQL outbox из
-транзакции SCD2. `cmd/publisher` пока проверяет подключения к PostgreSQL и Kafka.
-После подключения к outbox он будет публиковать события со стабильным `event_id`
-с гарантией at-least-once.
+## PostgreSQL outbox
+
+При изменении уже загруженной компании SCD2 сохраняет новую версию и запись
+в `company_outbox` в одной транзакции. Первая версия и повтор того же отчёта
+событий не создают. `event_id` выдаёт PostgreSQL, а ограничение на `version_id`
+гарантирует одну запись outbox на версию.
+
+При первом запуске PostgreSQL Compose применит миграцию автоматически.
+Если том уже существует, примени миграцию из корня репозитория перед запуском
+обновлённого Loader.
+
+```powershell
+docker compose exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U $POSTGRES_USER -d $POSTGRES_DB -f /docker-entrypoint-initdb.d/002_company_outbox.sql'
+```
+
+`cmd/publisher` выбирает ожидающие строки по `version_id` и отправляет в
+`company.changes` JSON с полями `event_id`, `version_id`, `inn`, `occurred_at`
+и `type` со значением `CompanyChanged`. Ключ сообщения — ИНН. Продьюсер
+блокирует выбранную строку на время отправки и ставит `published_at` после
+подтверждения Kafka. При недоступности Kafka запись остаётся в очереди.
+Если Kafka приняла сообщение, а PostgreSQL не сохранил отметку, продьюсер
+может отправить сообщение повторно. Это доставка at-least-once со стабильным
+`event_id`, по которому потребитель может распознать повтор.
+
+### Запуск продьюсера
+
+Запусти PostgreSQL, примени миграции и подними Kafka по инструкции ниже.
+Задай `DATABASE_URL` с учётными данными и внешним портом локального PostgreSQL.
+В PowerShell для настроек из `.env.example` команда выглядит так.
+
+```powershell
+$env:DATABASE_URL = 'postgresql://spark:spark@127.0.0.1:5432/spark'
+go -C services/company-events run ./cmd/publisher
+```
+
+Продьюсер следит за очередью до Ctrl+C. Для проверки одной ожидающей записи
+используй `go -C services/company-events run ./cmd/publisher -once`.
+После изменения компании через Loader проверь новую строку в `company_outbox`.
+После доставки у неё заполнится `published_at`, а сообщение появится
+в `company.changes`. Команда `go -C services/company-events run ./cmd/processor`
+переносит одну ожидающую запись входного топика в `company.audit`.
 
 ## Запуск
 

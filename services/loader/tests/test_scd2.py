@@ -39,6 +39,7 @@ def _company(inn="9980000001", **over):
 
 def _clean(conn):
     with conn.cursor() as cur:
+        cur.execute("DELETE FROM company_outbox WHERE inn LIKE '998%'")
         cur.execute("DELETE FROM company_versions WHERE inn LIKE '998%'")
         cur.execute("DELETE FROM company_groups WHERE group_id LIKE 'grp-test-%'")
     conn.commit()

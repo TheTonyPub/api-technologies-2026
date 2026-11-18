@@ -137,7 +137,13 @@ def upsert_company(conn, company: dict, now, *, commit: bool = True) -> bool:
         cols_sql = ", ".join(f'"{c}"' for c in columns + ["attrs_hash", "valid_from", "is_current"])
         marks = ", ".join(["%s"] * (len(columns) + 3))
         values = [_db_value(company[c]) for c in columns] + [new_hash, now, True]
-        cur.execute(f"INSERT INTO company_versions ({cols_sql}) VALUES ({marks})", values)
+        cur.execute(f"INSERT INTO company_versions ({cols_sql}) VALUES ({marks}) RETURNING id", values)
+        version_id = cur.fetchone()[0]
+        if current is not None:
+            cur.execute(
+                "INSERT INTO company_outbox (version_id, inn) VALUES (%s, %s)",
+                (version_id, inn),
+            )
 
     return True
 

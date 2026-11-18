@@ -42,7 +42,7 @@ def db(monkeypatch):
 
     def clean():
         with conn.cursor() as cur:
-            for t in ("company_snapshot", "company_versions", "bank_clients"):
+            for t in ("company_snapshot", "company_outbox", "company_versions", "bank_clients"):
                 cur.execute(f"DELETE FROM {t} WHERE inn LIKE '997%'")
             cur.execute("DELETE FROM company_groups WHERE group_id='grp-test-1'")
         conn.commit()
