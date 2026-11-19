@@ -54,7 +54,7 @@ def health():
     }
 
 
-@app.get("/models")
+@app.get("/v1/models")
 def get_models():
     if model is None:
         raise HTTPException(
@@ -73,7 +73,7 @@ def get_models():
     }
 
 
-@app.post("/inference/check")
+@app.post("/v1/inference/check")
 def check_transaction(request: InferenceRequest):
     if model is None:
         raise HTTPException(
