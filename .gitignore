@@ -11,3 +11,9 @@ cmake-build-*/
 
 models/
 data/
+
+/minio/
+/compose.yaml.backup
+
+/minio/
+/compose.yaml.backup

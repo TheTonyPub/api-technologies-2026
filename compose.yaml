@@ -1,19 +1,27 @@
 services:
   minio:
-    image: pgsty/silo:RELEASE.2026-09-16T00-00-00Z
+    image: cgr.dev/chainguard/minio:latest
     command: server /data --console-address ":9001"
     env_file:
       - .env
     volumes:
-      - ./minio/data:/data
+      - ./minio/minio-data:/data
     ports:
       - "9000:9000"
       - "9001:9001"
+
+  minio-healthcheck:
+    image: curlimages/curl:latest
+    command: ["sh", "-c", "while true; do sleep 3600; done"]
+    depends_on:
+      minio:
+        condition: service_started
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: ["CMD", "curl", "-fsS", "http://minio:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
 
   ml-rest:
     build:
@@ -27,7 +35,7 @@ services:
     ports:
       - "8001:8001"
     depends_on:
-      minio:
+      minio-healthcheck:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health', timeout=3)"]
@@ -48,7 +56,7 @@ services:
     ports:
       - "50051:50051"
     depends_on:
-      minio:
+      minio-healthcheck:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import grpc; channel=grpc.insecure_channel('localhost:50051'); grpc.channel_ready_future(channel).result(timeout=3); channel.close()"]
