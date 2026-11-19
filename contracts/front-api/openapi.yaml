@@ -1,0 +1,296 @@
+openapi: 3.1.0
+
+info:
+  title: ML Service API
+  description: >-
+    API ML-сервиса антифрода. Получает признаки транзакции,
+    рассчитывает вероятность мошенничества и возвращает скор.
+    Модель загружается из S3-совместимого хранилища при запуске.
+    Итоговое решение принимает отдельный сервис Decision.
+  version: 1.0.0
+
+servers:
+  - url: https://ml-service.anti-fraud.local
+    description: Основной сервер
+
+tags:
+  - name: Inference
+    description: Получение скора модели
+  - name: Models
+    description: Информация о загруженной модели
+
+paths:
+  /v1/inference/check:
+    post:
+      summary: Получить скор по признакам транзакции
+      tags:
+        - Inference
+      description: >-
+        Принимает шесть признаков транзакции, применяет ML-модель
+        и возвращает скор и результат классификации.
+        Итоговое решение принимает сервис Decision.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InferenceRequest'
+            examples:
+              test_features:
+                summary: Пример признаков транзакции
+                value:
+                  transaction_id: "tx_98765"
+                  client_id: "client_5267"
+                  features:
+                    amount: 100
+                    avg_amount_30d: 150
+                    tx_count_24h: 5
+                    geo_risk: 0.1
+                    merchant_risk: 0.2
+                    hour: 14
+      responses:
+        '200':
+          description: Скор и результат классификации
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InferenceResponse'
+              examples:
+                normal:
+                  summary: Обычная транзакция
+                  value:
+                    transaction_id: "tx_98765"
+                    score: 0.046317
+                    check_details:
+                      tool: "ML Service"
+                      version: "1.0.0"
+                      action: "scoring"
+                      actual_result: "normal"
+                fraud:
+                  summary: Подозрительная транзакция
+                  value:
+                    transaction_id: "tx_98766"
+                    score: 0.95
+                    check_details:
+                      tool: "ML Service"
+                      version: "1.0.0"
+                      action: "scoring"
+                      actual_result: "fraud"
+        '422':
+          description: Ошибка проверки входных данных
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+        '500':
+          description: Модель не загружена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailErrorResponse'
+              example:
+                detail: "ML model not loaded"
+
+  /v1/models:
+    get:
+      summary: Получить информацию о загруженной модели
+      tags:
+        - Models
+      description: Возвращает список моделей, доступных для инференса.
+      responses:
+        '200':
+          description: Список доступных моделей
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - models
+                properties:
+                  models:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ModelInfo'
+              example:
+                models:
+                  - name: "antifraud"
+                    version: "1.0.0"
+                    status: "active"
+        '500':
+          description: Модель не загружена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailErrorResponse'
+              example:
+                detail: "ML model not loaded"
+
+  /health:
+    get:
+      summary: Проверить состояние ML Service
+      tags:
+        - Models
+      description: Проверяет доступность сервиса и загрузку модели.
+      responses:
+        '200':
+          description: Состояние сервиса
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                  - model_loaded
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+                  model_loaded:
+                    type: boolean
+                    example: true
+
+components:
+  schemas:
+    InferenceRequest:
+      type: object
+      required:
+        - transaction_id
+        - client_id
+        - features
+      properties:
+        transaction_id:
+          type: string
+          description: ID транзакции
+        client_id:
+          type: string
+          description: ID клиента
+        features:
+          $ref: '#/components/schemas/InferenceFeatures'
+
+    InferenceFeatures:
+      type: object
+      required:
+        - amount
+        - avg_amount_30d
+        - tx_count_24h
+        - geo_risk
+        - merchant_risk
+        - hour
+      properties:
+        amount:
+          type: number
+          minimum: 0
+          description: Сумма текущей транзакции
+        avg_amount_30d:
+          type: number
+          minimum: 0
+          description: Средняя сумма транзакций за 30 дней
+        tx_count_24h:
+          type: integer
+          minimum: 0
+          description: Количество транзакций за последние 24 часа
+        geo_risk:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Географический риск
+        merchant_risk:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Риск торговой точки
+        hour:
+          type: integer
+          minimum: 0
+          maximum: 23
+          description: Час совершения транзакции
+
+    InferenceResponse:
+      type: object
+      required:
+        - transaction_id
+        - score
+        - check_details
+      properties:
+        transaction_id:
+          type: string
+          description: ID проверенной транзакции
+        score:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Оценка вероятности мошенничества
+        check_details:
+          type: object
+          required:
+            - tool
+            - version
+            - action
+            - actual_result
+          properties:
+            tool:
+              type: string
+              description: Название сервиса
+            version:
+              type: string
+              description: Версия модели
+            action:
+              type: string
+              description: Выполненное действие
+            actual_result:
+              type: string
+              enum:
+                - fraud
+                - normal
+              description: Результат классификации модели
+
+    ModelInfo:
+      type: object
+      required:
+        - name
+        - version
+        - status
+      properties:
+        name:
+          type: string
+        version:
+          type: string
+        status:
+          type: string
+          enum:
+            - active
+            - archived
+
+    DetailErrorResponse:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          type: string
+
+    HTTPValidationError:
+      type: object
+      properties:
+        detail:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationError'
+
+    ValidationError:
+      type: object
+      required:
+        - loc
+        - msg
+        - type
+      properties:
+        loc:
+          type: array
+          items:
+            oneOf:
+              - type: string
+              - type: integer
+        msg:
+          type: string
+        type:
+          type: string
