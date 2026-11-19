@@ -206,7 +206,7 @@ paths:
                   value:
                     inn: '7700000002'
                     probability: 0.73
-                    modelVersion: '1.0.0'
+                    modelVersion: lead-scoring-2026.09.1
                     scoredAt: '2026-09-23T10:42:11Z'
                     dataAsOf: '2026-09-23T06:15:00Z'
         '400':
@@ -311,9 +311,9 @@ components:
           enum: [ACTIVE, LIQUIDATING, LIQUIDATED]
           example: ACTIVE
         relation:
-          type: [string, 'null']
+          type: string
           description: Кем компания приходится группе.
-          enum: [PARENT, SUBSIDIARY, AFFILIATE, null]
+          enum: [PARENT, SUBSIDIARY, AFFILIATE]
           example: PARENT
         isBankClient:
           type: boolean
@@ -364,7 +364,7 @@ components:
         modelVersion:
           type: string
           description: Версия модели, которая посчитала оценку.
-          example: '1.0.0'
+          example: lead-scoring-2026.09.1
         scoredAt:
           type: string
           format: date-time
