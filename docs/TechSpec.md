@@ -626,10 +626,10 @@ curl -H "Authorization: Bearer change-me" "localhost:8000/v1/companies/999000002
 2. Сценарий проверки:
 
    ```sh
-   DEMO_EXPECTED_NEW_VERSIONS="$EXPECTED_CHANGES" bash scripts/demo.sh --acceptance
+   DEMO_EXPECTED_SPARK=/path/to/expected-spark.json ./scripts/demo.sh --acceptance
    ```
 
-   Задайте `EXPECTED_CHANGES` по эталону `tools/expected.py`. Скрипт создаёт `demo-result.json` и проверяет 1000 компаний, 73 группы, 451 клиента банка и ожидаемое число новых версий. При необходимости передайте ИНН для демонстрации через переменные из [README](../README.md#проверка-перед-сдачей).
+   Передайте JSON из `tools/expected.py` для окна проверки. Скрипт создаёт `demo-result.json` с результатами сверки счётчиков, истории и временем обоих запросов карточки. Команда эталона и переменные сценария описаны в [README](../README.md#проверка-перед-сдачей).
 
 3. Сбои. Те же шаги с `MOCK_SCENARIO=unavailable`, `ratelimit` и `timeout`: сервисы не падают и отвечают ошибкой по контракту.
 

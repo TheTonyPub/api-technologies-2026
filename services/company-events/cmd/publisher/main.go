@@ -33,16 +33,22 @@ type companyChanged struct {
 
 func main() {
 	once := flag.Bool("once", false, "publish at most one pending event and exit")
+	healthcheck := flag.Bool("healthcheck", false, "check PostgreSQL and Kafka without publishing")
 	flag.Parse()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	if err := run(ctx, *once); err != nil && !errors.Is(err, context.Canceled) {
+	if err := run(ctx, *once, *healthcheck); err != nil && !errors.Is(err, context.Canceled) {
 		log.Fatal(err)
 	}
 }
 
-func run(ctx context.Context, once bool) error {
+func run(ctx context.Context, once, healthcheck bool) error {
+	if healthcheck {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 4*time.Second)
+		defer cancel()
+	}
 	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
 		return errors.New("DATABASE_URL is required")
@@ -71,6 +77,10 @@ func run(ctx context.Context, once bool) error {
 		return fmt.Errorf("create Kafka client: %w", err)
 	}
 	defer client.Close()
+
+	if healthcheck {
+		return client.Ping(ctx)
+	}
 
 	for ctx.Err() == nil {
 		attemptCtx, cancel := context.WithTimeout(ctx, deliveryTimeout+5*time.Second)

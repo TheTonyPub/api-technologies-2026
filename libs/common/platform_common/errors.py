@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 log = logging.getLogger("platform")
+access_log = logging.getLogger("uvicorn.error.platform")
 
 INN_PATTERN = r"^[0-9]{10}$"
 
@@ -62,6 +63,9 @@ def install(app: FastAPI) -> None:
             return JSONResponse(status_code=500, headers={"X-Request-Id": rid},
                                 content=error_body("INTERNAL_ERROR", "Внутренняя ошибка сервиса", rid))
         response.headers["X-Request-Id"] = rid
+        route = getattr(request.scope.get("route"), "path", "-")
+        access_log.info("%s %s %s status=%d X-Request-Id=%r",
+                        app.title, request.method, route, response.status_code, rid)
         return response
 
     @app.exception_handler(ApiError)

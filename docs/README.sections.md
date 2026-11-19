@@ -7,7 +7,7 @@
 
 | Требование | Реализация | Как проверить |
 |---|---|---|
-| Запуск стека одной командой | [Docker Compose](../docker-compose.yml) с healthcheck и миграциями PostgreSQL при первом запуске | `docker compose up -d --build --wait` |
+| Запуск стека одной командой | [Docker Compose](../docker-compose.yml) с healthcheck, миграциями PostgreSQL, брокером и Go-продьюсером | `docker compose up -d --build --wait` |
 | Авторизация СПАРК, SOAP, пагинация, первичная и повторная загрузка | [SOAP-клиент](../services/loader/app/soap_client.py), [Loader](../services/loader/app/loader.py) и [инкремент](../services/loader/app/incremental.py) | `GET /status`, `POST /sync`, пять сценариев сбоев из `.env.example` |
 | История SCD2, идемпотентность и сохранность данных | [SCD2](../services/loader/app/scd2.py), [миграции](../db/migrations), [API истории](../services/enrichment/app/history.py) | История до и после изменения, повторный `/sync`, проверка счётчиков после перезапуска |
 | Пакетная проверка АБС, витрина и прогрев Redis | [АБС-клиент](../services/enrichment/app/abs_client.py), [Enrichment](../services/enrichment/app/pipeline.py) | `GET /status` Enrichment, 1000 карточек и 451 клиент банка на контрольном наборе |
@@ -17,6 +17,6 @@
 | Скоринг по gRPC и сверка с моделью | [Scoring](../services/scoring/app/features.py), [gRPC-контракт](../proto/scoring.proto), [ML Model](../services/ml-model/app/server.py) | [Прямое сравнение прогноза](../scripts/check_scoring.py) для трёх ИНН |
 | Приёмка одним сценарием и отчёт | [demo.sh](../scripts/demo.sh) и [инструкция](../README.md#проверка-перед-сдачей) | `--acceptance` и `demo-result.json`, включая счётчики 1000 / 73 / 451 и эталон новых версий |
 | Документация, контракты и вклад команды | [README](../README.md), [диаграммы](../architecture), [OpenAPI](../contracts), [изменения контрактов](CHANGES-hw4.md) | `git lfs ls-files`, история коммитов, отсутствие `.env` и `.dill` в Git, PR в одноимённую ветку основного репозитория |
-| Дополнительно: метрики и дашборд | [Метрики Loader](../services/loader/app/metrics.py), [Prometheus и Grafana](../compose.monitoring.yml) | Таргет Loader в Prometheus и дашборд «СПАРК · Loader» |
-| Дополнительно: тесты и CI | [GitHub Actions](../.github/workflows/ci.yml), [локальный запуск](WORKFLOW.md#тесты) | Python-тесты, `go test`, `go vet`, проверка Compose и сборка образов |
+| Дополнительно: метрики, дашборд и трассировка | [Метрики Loader](../services/loader/app/metrics.py), [Prometheus и Grafana](../compose.monitoring.yml), [REST middleware](../libs/common/platform_common/errors.py) | Таргет Loader, дашборд «СПАРК · Loader» и совпадающий `X-Request-Id` в логах Gateway и нижнего сервиса |
+| Дополнительно: тесты и CI | [GitHub Actions](../.github/workflows/ci.yml), [локальный запуск](WORKFLOW.md#тесты) | Ruff, actionlint, Bash, Python-тесты, `go test`, `go vet`, проверка Compose и сборка образов |
 | Дополнительно: события изменений | [Транзакционный outbox](../db/migrations/002_company_outbox.sql), [Kafka и Go](../services/company-events/README.md) | Новая версия → `company.changes` → `company.audit`, отмена и коммит транзакции Kafka |

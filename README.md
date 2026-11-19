@@ -4,17 +4,16 @@
 
 ## Запуск
 
-Из корня репозитория скопируйте `.env.example` в `.env` и заполните ключи команды. Укажите `MODEL_URL` или положите `company-scoring-v1.dill` в `models/`.
+Нужен Docker Compose 2.20 или новее. Из корня репозитория скопируйте `.env.example` в `.env` и заполните ключи команды. Укажите `MODEL_URL` или положите `company-scoring-v1.dill` в `models/`.
 
 ```sh
 cp .env.example .env
-docker compose up -d --build
-make smoke
+docker compose up --build
 ```
 
-На Windows для копирования можно использовать `Copy-Item .env.example .env`, а для smoke — `bash scripts/smoke.sh`. Прогресс загрузки виден на `GET localhost:8003/status`, готовность витрины — на `GET localhost:8001/status`. Для существующего тома порядок применения миграции outbox отдельно указан в [инструкции Kafka](services/company-events/README.md#postgresql-outbox).
+Compose автоматически поднимает Kafka, создаёт топики и запускает Go-продьюсер. Для запуска в фоне добавьте `-d`. На Windows для копирования можно использовать `Copy-Item .env.example .env`. Для smoke выполните `bash scripts/smoke.sh`. Прогресс загрузки виден на `GET localhost:8003/status`, готовность витрины — на `GET localhost:8001/status`. Для существующего тома порядок применения миграции outbox указан в [инструкции Kafka](services/company-events/README.md#postgresql-outbox).
 
-Порты на хосте — Gateway 8000, Enrichment 8001, Scoring 8002, Loader 8003, Client Info 8004, Group Companies 8005, ML Model 50051, PostgreSQL 5432, Redis 6379. Дополнительные стенды публикуют Kafka на 29092, Prometheus на 9090 и Grafana на 3000.
+Порты на хосте — Gateway 8000, Enrichment 8001, Scoring 8002, Loader 8003, Client Info 8004, Group Companies 8005, ML Model 50051, PostgreSQL 5432, Redis 6379 и Kafka 29092. При запуске мониторинга Prometheus доступен на 9090, Grafana на 3000.
 
 ## Архитектура
 
@@ -47,17 +46,22 @@ PostgreSQL обеспечивает согласованность истори�
 
 ## Проверка перед сдачей
 
-`bash scripts/demo.sh` проверяет доступные сценарии и пишет результаты в `demo-result.json`. Для строгой приёмки используйте чистый стенд, задайте `EXPECTED_CHANGES` по эталону задания и запустите:
+`./scripts/demo.sh` выполняет сценарий проверки и пишет результаты в `demo-result.json`. Для строгой приёмки используйте чистый стенд. Сохраните вывод эталона из каталога `external-services` ветки `infra/external-services`. Начало загрузки видно в `initial_loaded_at` ответа Loader `/status`.
 
 ```sh
-DEMO_EXPECTED_NEW_VERSIONS="$EXPECTED_CHANGES" bash scripts/demo.sh --acceptance
+# В каталоге external-services, с установленными зависимостями эталона
+python -m tools.expected spark --at "$CHECK_AT" --since "$INITIAL_LOADED_AT" > /path/to/expected-spark.json
+# В корне проекта команды
+DEMO_EXPECTED_SPARK=/path/to/expected-spark.json ./scripts/demo.sh --acceptance
 ```
 
-В режиме приёмки ожидаются 1000 компаний в Loader и в витрине, 73 группы, 451 клиент банка и указанное число новых версий. Скрипт также требует историю с двумя версиями, карточку с попаданием в кэш, группу с фильтром и три разных результата скоринга. Если одного из вариантов нет среди автоматически выбранных компаний, укажите `DEMO_HISTORY_INN`, `DEMO_COMPANY_INN`, `DEMO_GROUP_INN` или `DEMO_SCORING_INNS` в окружении. Последняя переменная содержит три ИНН через пробел. Для тестовой витрины ожидаемые счётчики можно переопределить через `DEMO_EXPECTED_COMPANIES`, `DEMO_EXPECTED_GROUPS` и `DEMO_EXPECTED_BANK_CLIENTS`.
+`CHECK_AT` — момент контрольной синхронизации, `INITIAL_LOADED_AT` — начало первичной загрузки. Используйте одно окно для синхронизации и эталона. Обе даты есть в `demo-result.json` как `lastSyncAt` и `initialLoadedAt`. Выберите окно с изменениями адреса или группы, чтобы эталон сформировал `scd2_demo`. Скрипт читает `changes_since.changes` и историю `scd2_demo` прямо из JSON. Через `DEMO_HISTORY_INN` можно выбрать другую компанию из этого списка.
 
-На чистом Docker-стенде с локальными SOAP/REST-фикстурами строгий прогон загрузил 1000 компаний и 73 группы, собрал витрину с 451 клиентом банка и сохранил 30 новых версий SCD2. После перезапуска стек сохранил все 1030 версий. Скоринг по трём ИНН совпал с прямым вызовом модели через `scripts/check_scoring.py`.
+Строгий режим сверяет 1000 компаний, 73 группы, 451 клиента банка, новые версии и интервалы истории. В отчёт попадают карточка, время обоих запросов, повторное попадание в кэш и результаты скоринга. Если токен Gateway в `.env` отличается от `change-me`, передайте то же значение скрипту через переменную окружения `GATEWAY_TOKEN`. Для выбора сценариев используйте `DEMO_COMPANY_INN`, `DEMO_GROUP_INN` и `DEMO_SCORING_INNS` (три ИНН через пробел). Для локальной фикстуры можно задать `DEMO_EXPECTED_NEW_VERSIONS` и `DEMO_EXPECTED_HISTORY` (JSON с `inn` и массивом `versions`, у каждой версии поля `valid_from`, `valid_to`). Её счётчики переопределяются через `DEMO_EXPECTED_COMPANIES`, `DEMO_EXPECTED_GROUPS` и `DEMO_EXPECTED_BANK_CLIENTS`.
 
-Для контрольного прогона на моках курса запишите фактические счётчики и время загрузки отдельно. Для проверки сбоев задайте `MOCK_SCENARIO` при запуске Loader и Enrichment через Compose. Поддерживаемые сценарии перечислены в `.env.example`.
+На чистом Docker-стенде с локальной копией учебных моков из `infra/external-services` загрузились 1000 компаний и 73 группы. В витрине 451 клиент банка. За окно с 18 по 19 ноября 2026 года (00:00 UTC) инкремент создал 24 версии SCD2, как в эталоне. Демо сверило интервалы истории, а `scripts/check_scoring.py` подтвердил совпадение трёх прогнозов с прямым вызовом модели.
+
+Для контрольного прогона на сервере курса запишите фактические счётчики и время загрузки отдельно. Для проверки сбоев задайте `MOCK_SCENARIO` при запуске Loader и Enrichment через Compose. Поддерживаемые сценарии перечислены в `.env.example`.
 
 [Чек-лист ТЗ](docs/TechSpec.md#8-что-проверить-перед-сдачей) · [Таблица соответствия](docs/README.sections.md#соответствие-требованиям) · [Тесты и сборка в GitHub Actions](.github/workflows/ci.yml)
 

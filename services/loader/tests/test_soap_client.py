@@ -135,6 +135,15 @@ class SoapClientTests(unittest.TestCase):
         self.client.get_company_short_report("7700000001")
         self.assertEqual(self.pauses(), [7.0])
 
+    def test_retry_after_survives_the_course_mock_soap_fault_status(self):
+        response = mock.Mock(status_code=500, headers={"Retry-After": "5"})
+        transport = sc._Transport.__new__(sc._Transport)
+        with mock.patch.object(sc.Transport, "post", return_value=response, create=True):
+            with self.assertRaises(sc.RetryLater) as caught:
+                transport.post("http://spark/ws", b"", {})
+
+        self.assertEqual(sc.pause_for(caught.exception, 0), 5.0)
+
     def test_gives_up_without_useless_last_sleep(self):
         self.fake.script["GetCompanyShortReport"] = [TransportError("500")] * sc.MAX_ATTEMPTS
         with self.assertRaises(SparkUnavailable) as ctx:

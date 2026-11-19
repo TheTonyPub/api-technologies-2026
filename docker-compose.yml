@@ -1,3 +1,6 @@
+include:
+  - compose.kafka.yml
+
 x-app: &app
   env_file: .env
   restart: unless-stopped
@@ -22,7 +25,7 @@ services:
     mem_limit: 512m
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -84,7 +87,7 @@ services:
     ports: ["8002:8002"]
     depends_on:
       postgres: { condition: service_healthy }
-      ml-model: { condition: service_started }   # без ML Model сервис обязан жить и отдавать 503
+      ml-model: { condition: service_healthy }
     healthcheck:
       <<: *health
       test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:8002/health')"]
@@ -121,6 +124,19 @@ services:
     healthcheck:
       <<: *health
       test: ["CMD", "python", "-c", "import urllib.request as u; u.urlopen('http://localhost:8000/health')"]
+
+  event-publisher:
+    <<: *app
+    build: { context: ., dockerfile: services/company-events/Dockerfile }
+    environment:
+      KAFKA_BROKERS: kafka:9092
+    depends_on:
+      postgres: { condition: service_healthy }
+      kafka-topics: { condition: service_completed_successfully }
+    healthcheck:
+      <<: *health
+      test: ["CMD", "/publisher", "-healthcheck"]
+      timeout: 5s
 
 volumes:
   pgdata:

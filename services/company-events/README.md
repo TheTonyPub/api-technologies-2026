@@ -4,6 +4,10 @@ Kafka даёт потребителям возможность реагиров�
 от Loader и повторно читать события из топика. ИНН используется как ключ сообщения,
 чтобы записи одной компании попадали в одну партицию.
 
+Обычный `docker compose up --build` запускает брокер, создаёт оба топика и
+включает Go-продьюсер outbox. Брокер доступен с хоста на `localhost:29092`.
+Go-обработчик аудита запускается вручную для демонстрации транзакции.
+
 ## Что работает
 
 ```text
@@ -43,11 +47,17 @@ docker compose exec -T postgres sh -c 'psql -v ON_ERROR_STOP=1 -U $POSTGRES_USER
 
 ### Запуск продьюсера
 
-Запусти PostgreSQL, примени миграции и подними Kafka по инструкции ниже.
-Задай `DATABASE_URL` с учётными данными и внешним портом локального PostgreSQL.
-В PowerShell для настроек из `.env.example` команда выглядит так.
+В основном Compose продьюсер уже работает. Посмотри его лог из корня репозитория.
 
 ```powershell
+docker compose logs -f event-publisher
+```
+
+Для отдельного запуска с хоста сначала останови контейнер `event-publisher`.
+В PowerShell с настройками из `.env.example` команды выглядят так.
+
+```powershell
+docker compose stop event-publisher
 $env:DATABASE_URL = 'postgresql://spark:spark@127.0.0.1:5432/spark'
 go -C services/company-events run ./cmd/publisher
 ```
@@ -59,20 +69,22 @@ go -C services/company-events run ./cmd/publisher
 в `company.changes`. Команда `go -C services/company-events run ./cmd/processor`
 переносит одну ожидающую запись входного топика в `company.audit`.
 
-## Запуск
+## Отдельный стенд для ручной демонстрации
 
 Нужны запущенный Docker Desktop и Go 1.24 или новее. Все команды ниже запускаются
 из корня репозитория. Для демо достаточно Kafka, Go и синтетического события.
 
 ```powershell
-docker compose -f compose.kafka.yml up -d kafka
-docker compose -f compose.kafka.yml run --rm kafka-topics
+$env:KAFKA_HOST_PORT = '39092'
+$env:KAFKA_BROKERS = 'localhost:39092'
+docker compose -p company-events-lab -f compose.kafka.yml up -d kafka
+docker compose -p company-events-lab -f compose.kafka.yml run --rm kafka-topics
 go -C services/company-events test ./...
 ```
 
-На хосте адрес брокера `localhost:29092`, внутри Docker — `kafka:9092`.
-Для Go-команд можно переопределить адрес через `KAFKA_BROKERS`. На одном брокере
-запускай один экземпляр обработчика с текущим `TransactionalID`.
+У этого стенда отдельный порт и том с топиками. Внутри Docker адрес по-прежнему
+`kafka:9092`. На одном брокере запускай один экземпляр обработчика с текущим
+`TransactionalID`.
 
 ## Ручная проверка отмены и коммита
 
@@ -84,10 +96,10 @@ go -C services/company-events test ./...
 $eventId = 'demo-' + [guid]::NewGuid().ToString('N')
 $event = @{ event_id = $eventId; inn = '7700000002'; type = 'CompanyChanged' } | ConvertTo-Json -Compress
 "7700000002|$event" |
-  docker compose -f compose.kafka.yml exec -T kafka /opt/kafka/bin/kafka-console-producer.sh --bootstrap-server kafka:9092 --topic company.changes --property parse.key=true --property 'key.separator=|'
+  docker compose -p company-events-lab -f compose.kafka.yml exec -T kafka /opt/kafka/bin/kafka-console-producer.sh --bootstrap-server kafka:9092 --topic company.changes --property parse.key=true --property 'key.separator=|'
 
 function Read-DemoAudit {
-  docker compose -f compose.kafka.yml exec -T kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092 --topic company.audit --from-beginning --isolation-level read_committed --timeout-ms 5000 |
+  docker compose -p company-events-lab -f compose.kafka.yml exec -T kafka /opt/kafka/bin/kafka-console-consumer.sh --bootstrap-server kafka:9092 --topic company.audit --from-beginning --isolation-level read_committed --timeout-ms 5000 |
     Select-String -SimpleMatch $eventId
 }
 ```
@@ -118,7 +130,9 @@ go -C services/company-events run ./cmd/processor
 `CURRENT-OFFSET` равен оффсету обработанной записи плюс один.
 
 ```powershell
-docker compose -f compose.kafka.yml exec -T kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server kafka:9092 --group company-audit-dev --describe
+docker compose -p company-events-lab -f compose.kafka.yml exec -T kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server kafka:9092 --group company-audit-dev --describe
 ```
 
-Для остановки демо выполни `docker compose -f compose.kafka.yml down`.
+Для остановки демо выполни `docker compose -p company-events-lab -f compose.kafka.yml down`.
+Чтобы вернуться к основному брокеру в этом же PowerShell, выполни
+`Remove-Item Env:KAFKA_BROKERS, Env:KAFKA_HOST_PORT`.

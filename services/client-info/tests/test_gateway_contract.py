@@ -69,13 +69,17 @@ class ClientInfoGatewayTests(unittest.IsolatedAsyncioTestCase):
         self.cache.set.side_effect = set_card
 
     async def test_card_cache_miss_then_hit_through_gateway(self):
-        first = await self.client.get(PATH, headers=HEADERS)
+        with self.assertLogs("uvicorn.error.platform", level="INFO") as access:
+            first = await self.client.get(PATH, headers=HEADERS)
         second = await self.client.get(PATH, headers=HEADERS)
         self.assertEqual((first.status_code, second.status_code), (200, 200))
         self.assertEqual((first.headers["X-Cache"], second.headers["X-Cache"]), ("MISS", "HIT"))
         self.assertEqual(first.json(), second.json())
         self.assertEqual(first.json()["inn"], INN)
         self.assertEqual(second.headers["X-Request-Id"], "card-test")
+        for service in ("API Gateway", "Client Info Service"):
+            self.assertTrue(any(service in line and "X-Request-Id='card-test'" in line
+                                for line in access.output), access.output)
         self.connect.assert_called_once()
 
     async def test_redis_failure_uses_postgresql(self):

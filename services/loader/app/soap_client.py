@@ -65,11 +65,12 @@ class RetryLater(Exception):
 
 
 class _Transport(Transport):
-    """Обычный транспорт zeep, но 429/503 превращаем в RetryLater, чтобы прочитать Retry-After."""
+    """Сохраняем Retry-After, в том числе для недоступности в SOAP Fault с HTTP 500."""
     def post(self, address, message, headers):
         response = super().post(address, message, headers)
-        if response.status_code in (429, 503):
-            raise RetryLater(response.status_code, response.headers.get("Retry-After"))
+        retry_after = response.headers.get("Retry-After")
+        if response.status_code in (429, 503) or (response.status_code == 500 and retry_after):
+            raise RetryLater(response.status_code, retry_after)
         return response
 
 
