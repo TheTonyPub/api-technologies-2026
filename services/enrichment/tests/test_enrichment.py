@@ -85,10 +85,40 @@ def test_abs_failure_keeps_previous_flags(db, monkeypatch):
     conn, _ = db
     pipeline.rebuild_all(conn)
     monkeypatch.setattr(abs_client, "lookup", lambda inns, client=None: {})  # АБС лежит
-    pipeline.rebuild_all(conn)
+    with pytest.raises(pipeline.IncompleteBankLookup):
+        pipeline.rebuild_all(conn)
     with conn.cursor() as cur:
         cur.execute("SELECT count(*) FROM company_snapshot WHERE is_bank_client AND inn LIKE '997%'")
         assert cur.fetchone()[0] == CLIENTS
+
+
+def test_initial_snapshot_waits_for_missing_abs_flags_and_retries_only_missing(db, monkeypatch):
+    conn, r = db
+    monkeypatch.setattr(pipeline, "state",
+                        dict(built=False, data_as_of=None, last_error=None, synced_marker=None))
+    first_inn = "9970000000"
+    pending_calls = []
+
+    def lookup(inns):
+        pending_calls.append(inns)
+        if len(pending_calls) == 1:
+            return {first_inn: True}
+        return dict.fromkeys(inns, False)
+
+    monkeypatch.setattr(abs_client, "lookup", lookup)
+    checked = set()
+    with pytest.raises(pipeline.IncompleteBankLookup):
+        pipeline.rebuild_all(conn, checked_inns=checked)
+    assert checked == {first_inn}
+    assert pipeline.state["built"] is False
+    assert conn.execute("SELECT count(*) FROM company_snapshot WHERE inn = %s", (first_inn,)).fetchone() == (0,)
+    assert r.get(f"company:{first_inn}") is None
+
+    pipeline.rebuild_all(conn, checked_inns=checked)
+    assert len(pending_calls[0]) == N
+    assert set(pending_calls[1]) == set(pending_calls[0]) - {first_inn}
+    assert pipeline.state["built"] is True
+    assert json.loads(r.get(f"company:{first_inn}"))["isBankClient"] is True
 
 
 def test_abs_retry_on_429_then_ok(monkeypatch):
@@ -128,6 +158,12 @@ def test_abs_invalid_success_body_does_not_clear_flags():
         lambda req: httpx.Response(200, json={"unexpected": []}),
     )) as client:
         assert abs_client.lookup(["1"], client=client) == {}
+
+
+def test_abs_missing_item_is_not_interpreted_as_false():
+    assert abs_client.parse_response(
+        {"items": [{"inn": "1", "is_bank_client": False, "client": None}]}, ["1", "2"]
+    ) == {"1": False}
 
 
 def test_abs_batches_of_500(monkeypatch):

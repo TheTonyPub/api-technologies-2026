@@ -626,10 +626,10 @@ curl -H "Authorization: Bearer change-me" "localhost:8000/v1/companies/999000002
 2. Сценарий проверки:
 
    ```sh
-   bash scripts/demo.sh
+   DEMO_EXPECTED_NEW_VERSIONS="$EXPECTED_CHANGES" bash scripts/demo.sh --acceptance
    ```
 
-   Он проходит, создаёт `demo-result.json`, числа совпадают с `tools/expected.py`: 1000 компаний, 73 группы, 451 клиент банка, новые версии SCD2 равны значению `changes`.
+   Задайте `EXPECTED_CHANGES` по эталону `tools/expected.py`. Скрипт создаёт `demo-result.json` и проверяет 1000 компаний, 73 группы, 451 клиента банка и ожидаемое число новых версий. При необходимости передайте ИНН для демонстрации через переменные из [README](../README.md#проверка-перед-сдачей).
 
 3. Сбои. Те же шаги с `MOCK_SCENARIO=unavailable`, `ratelimit` и `timeout`: сервисы не падают и отвечают ошибкой по контракту.
 

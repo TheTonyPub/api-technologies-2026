@@ -15,7 +15,7 @@
 
 ## Правила
 - Ветки `feat/<кто>-<что>` от `homework/04-api-services`, мелкие PR, осмысленные коммиты (не «fix»).
-- Схема БД: только НОВЫЕ файлы `db/migrations/00N_*.sql`, потом `make reset` у всех.
+- Схема БД: новые файлы `db/migrations/00N_*.sql`. На существующем томе применяем новую миграцию отдельно. `make reset` нужен для чистого стенда, данные этого стенда будут удалены.
 - Ключи и пароли только в локальном `.env`. Если ключ попал в коммит — сразу сказать, его придётся перевыпускать.
 - Ошибки REST — единый формат `{code, message, traceId}` через `platform_common.errors` (см. примеры в сервисах).
 - Исходящие вызовы моков: `X-Mock-Scenario` только если `MOCK_SCENARIO` не пуст.
@@ -42,7 +42,7 @@ python scripts/dev.py gateway             # или enrichment | scoring | loader
 Чистый старт: `make reset` (удалит данные БД).
 
 ## Тесты
-`python scripts/dev.py test` — юнит-тесты без Docker. Свои тесты кладите в `services/<сервис>/tests/` и добавляйте в `TESTS` в `scripts/dev.py`.
+`python scripts/dev.py test` запускает общие тесты Python, Scoring, Loader и API. Для проверок PostgreSQL задайте тестовые DSN. CI применяет миграции, запускает этот набор, тесты Enrichment и проверки Go.
 
 ## Порты
 gateway 8000 · enrichment 8001 · scoring 8002 · loader 8003 · client-info 8004 · group-companies 8005 · ml-model (gRPC) 50051 · postgres 5432 · redis 6379

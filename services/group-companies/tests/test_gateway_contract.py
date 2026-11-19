@@ -23,9 +23,9 @@ SINGLE = "/v1/companies/9990000021/group"
 UNKNOWN = "/v1/companies/9999999999/group"
 
 
-def member(inn, bank_client):
+def member(inn, bank_client, relation="AFFILIATE"):
     return {"inn": inn, "short_name": f"Company {inn}", "status": "ACTIVE",
-            "group_relation": "AFFILIATE", "is_bank_client": bank_client}
+            "group_relation": relation, "is_bank_client": bank_client}
 
 
 class GroupGatewayTests(unittest.IsolatedAsyncioTestCase):
@@ -52,7 +52,7 @@ class GroupGatewayTests(unittest.IsolatedAsyncioTestCase):
 
     def select(self, sql, params):
         rows = {
-            "a": [member("9990000002", False), member("9990000001", True)],
+            "a": [member("9990000002", False, relation=None), member("9990000001", True)],
             "b": [member("9990000011", False)],
         }
         value = params[0]
@@ -81,6 +81,11 @@ class GroupGatewayTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual([item["inn"] for item in response.json()["members"]], ["9990000001"])
         self.assertEqual(response.json()["totalMembers"], 1)
+
+    async def test_unknown_group_relation_is_null(self):
+        response = await self.client.get(GROUPED)
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.json()["members"][1]["relation"])
 
     async def test_group_without_bank_clients_and_company_without_group(self):
         filtered = await self.client.get(OTHER, params={"onlyBankClients": "true"})

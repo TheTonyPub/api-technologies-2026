@@ -4,7 +4,7 @@
   python scripts/dev.py local-env        создать .env.local из .env (localhost вместо имён контейнеров)
   python scripts/dev.py proto            сгенерировать gRPC-заглушки в .gen/
   python scripts/dev.py <сервис>         запустить СВОЙ сервис на хосте (базы поднять: make db)
-  python scripts/dev.py test             тесты (зависимости: services/loader/requirements.txt)
+  python scripts/dev.py test             тесты Loader, общего кода, Scoring и API
 Сервисы: gateway, enrichment, scoring, loader, client-info, group-companies, ml-model
 """
 import os
@@ -16,7 +16,8 @@ ROOT = Path(__file__).resolve().parents[1]
 PORTS = {"gateway": 8000, "enrichment": 8001, "scoring": 8002, "loader": 8003,
          "client-info": 8004, "group-companies": 8005}
 TESTS = [("libs/common/tests", "libs/common"), ("services/scoring/tests", "services/scoring"),
-         ("services/loader/tests", "services/loader")]
+         ("services/loader/tests", "services/loader"),
+         ("services/group-companies/tests", "services/group-companies")]
 
 
 def read_env(path: Path) -> dict:
@@ -72,7 +73,10 @@ def run_service(svc: str):
 
 def tests():
     code = 0
-    for tdir, extra in TESTS:
+    suites = list(TESTS)
+    if (ROOT / "services/client-info/tests").is_dir():
+        suites.append(("services/client-info/tests", "services/client-info"))
+    for tdir, extra in suites:
         env = os.environ.copy()
         env["PYTHONPATH"] = pythonpath("libs/common", extra)
         code |= subprocess.call([sys.executable, "-m", "unittest", "discover", "-s", tdir, "-v"], cwd=ROOT, env=env)

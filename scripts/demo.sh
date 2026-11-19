@@ -5,6 +5,18 @@
 #   bash scripts/demo.sh
 #   DEMO_HISTORY_INN=7700000001 DEMO_SCORING_INNS="7700000001 7700000002 7700000003" bash scripts/demo.sh
 set -euo pipefail
+ACCEPTANCE=0
+case "${1:-}" in
+  --acceptance)
+    ACCEPTANCE=1
+    if [[ ! "${DEMO_EXPECTED_NEW_VERSIONS:-}" =~ ^[1-9][0-9]*$ ]]; then
+      echo "Для приёмки задай DEMO_EXPECTED_NEW_VERSIONS по эталону" >&2
+      exit 2
+    fi
+    ;;
+  "") ;;
+  *) echo "Использование: bash scripts/demo.sh [--acceptance]" >&2; exit 2 ;;
+esac
 GW=${GW:-http://localhost:8000}
 LOADER=${LOADER:-http://localhost:8003}
 ENRICH=${ENRICH:-http://localhost:8001}
@@ -86,16 +98,17 @@ test "$(jget "$TMP/unknown.json" 'd["code"]')" = COMPANY_NOT_FOUND
 echo "=== 5. Группа компаний"
 GROUP_INN=${DEMO_GROUP_INN:-$CARD_INN}
 if [ -n "$GROUP_INN" ]; then
-  call "$GW/v1/companies/$GROUP_INN/group"
-  call "$GW/v1/companies/$GROUP_INN/group?onlyBankClients=true"
+  call "$GW/v1/companies/$GROUP_INN/group" > "$TMP/group.json"
+  call "$GW/v1/companies/$GROUP_INN/group?onlyBankClients=true" > "$TMP/bank-group.json"
 else
   echo "Для проверки группы задай DEMO_GROUP_INN"
 fi
 
 echo "=== 6. Скоринг трёх ИНН (шаг Фёдора)"
 SCORING_INNS=${DEMO_SCORING_INNS:-$(jget "$TMP/loader2.json" '" ".join((d.get("changed_inns") or [])[:3])')}
+read -r -a score_inns <<< "$SCORING_INNS"
 echo '{}' > "$TMP/scores.json"
-for inn in $SCORING_INNS; do
+for inn in "${score_inns[@]}"; do
   call "$GW/v1/companies/$inn/scoring" > "$TMP/score_$inn.json"
   "$PY" - "$TMP/scores.json" "$TMP/score_$inn.json" "$inn" <<'EOF'
 import json, sys
@@ -107,9 +120,11 @@ EOF
 done
 
 echo "=== Итог -> $OUT"
-"$PY" - "$TMP" "$OUT" "$HISTORY_INN" <<'EOF'
-import json, sys
-tmp, out, history_inn = sys.argv[1], sys.argv[2], sys.argv[3]
+"$PY" - "$TMP" "$OUT" "$HISTORY_INN" "$ACCEPTANCE" <<'EOF'
+import json, os, sys
+from pathlib import Path
+
+tmp, out, history_inn, acceptance = sys.argv[1:]
 load = lambda name: json.load(open(f"{tmp}/{name}"))
 loader, loader2, enrich, sync = load("loader.json"), load("loader2.json"), load("enrich.json"), load("sync.json")
 
@@ -131,6 +146,42 @@ result = {
     "history": {"inn": history_inn or None, "versions": load("history.json")},
     "scores": load("scores.json"),
 }
-json.dump(result, open(out, "w"), ensure_ascii=False, indent=2)
-print(json.dumps(result, ensure_ascii=False, indent=2))
+summary = json.dumps(result, ensure_ascii=False, indent=2)
+Path(out).write_text(summary + "\n", encoding="utf-8")
+print(summary)
+
+if acceptance == "1":
+    expected_companies = int(os.getenv("DEMO_EXPECTED_COMPANIES", "1000"))
+    expected = {
+        "companies": expected_companies,
+        "snapshotCompanies": expected_companies,
+        "initialVersions": expected_companies,
+        "groups": int(os.getenv("DEMO_EXPECTED_GROUPS", "73")),
+        "bankClients": int(os.getenv("DEMO_EXPECTED_BANK_CLIENTS", "451")),
+        "newVersionsAfterIncrement": int(os.environ["DEMO_EXPECTED_NEW_VERSIONS"]),
+    }
+    problems = [f"{key}: ожидалось {value}, получено {result[key]}"
+                for key, value in expected.items() if result[key] != value]
+    history = result["history"]["versions"]
+    if not isinstance(history, dict) or history.get("versionsCount", 0) < 2:
+        problems.append("нужна история компании с двумя или более версиями")
+    if not Path(tmp, "card.json").exists():
+        problems.append("не проверена карточка компании")
+    if Path(tmp, "group.json").exists():
+        group, bank_group = load("group.json"), load("bank-group.json")
+        members = group["members"]
+        if not members or not group["groupId"] or group["totalMembers"] != len(members):
+            problems.append("для приёмки нужна компания из непустой группы (DEMO_GROUP_INN)")
+        if (bank_group["members"] != [member for member in members if member["isBankClient"]]
+                or bank_group["totalMembers"] != len(bank_group["members"])):
+            problems.append("неверный результат фильтра onlyBankClients")
+    else:
+        problems.append("не проверена группа компаний")
+    scores = result["scores"]
+    if len(scores) != 3 or any(type(score) not in (int, float) or not 0 <= score <= 1
+                               for score in scores.values()):
+        problems.append("нужны три разных ИНН с вероятностями от 0 до 1 (DEMO_SCORING_INNS)")
+    if problems:
+        sys.exit("Приёмка не прошла:\n- " + "\n- ".join(problems))
+    print("Приёмка пройдена")
 EOF

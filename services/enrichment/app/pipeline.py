@@ -20,6 +20,10 @@ state = {"built": False, "data_as_of": None, "last_error": None, "synced_marker"
 _lock = threading.Lock()
 
 
+class IncompleteBankLookup(RuntimeError):
+    pass
+
+
 def _load_state(conn, key):
     with conn.cursor() as cur:
         cur.execute("SELECT value FROM load_state WHERE key = %s", (key,))
@@ -32,32 +36,37 @@ def _is_true(v) -> bool:
     return str(v).strip().lower() in ("true", "1", "t", "yes")
 
 
-def refresh_bank_clients(conn) -> int:
+def refresh_bank_clients(conn, checked_inns: set[str]) -> None:
     with conn.cursor() as cur:
         cur.execute("SELECT DISTINCT inn FROM company_versions WHERE is_current")
-        inns = [r[0] for r in cur.fetchall()]
-    found = abs_client.lookup(inns)  # только успешно полученные пачки
-    if not found:
-        log.warning("АБС не дал данных: bank_clients остаётся прежним")
-        return 0
-    with conn.cursor() as cur:
-        cur.executemany(
-            "INSERT INTO bank_clients (inn, is_bank_client, checked_at) VALUES (%s, %s, %s) "
-            "ON CONFLICT (inn) DO UPDATE SET is_bank_client = EXCLUDED.is_bank_client, "
-            "checked_at = EXCLUDED.checked_at",
-            [(inn, flag, dt.datetime.now(dt.timezone.utc)) for inn, flag in found.items()],
-        )
-    conn.commit()
-    log.info("bank_clients: обновлено %d записей, клиентов банка %d", len(found), sum(found.values()))
-    return len(found)
+        pending = {inn for (inn,) in cur.fetchall()} - checked_inns
+    if not pending:
+        return
+
+    found = abs_client.lookup(sorted(pending))
+    if found:
+        checked_at = dt.datetime.now(dt.timezone.utc)
+        with conn.cursor() as cur:
+            cur.executemany(
+                "INSERT INTO bank_clients (inn, is_bank_client, checked_at) VALUES (%s, %s, %s) "
+                "ON CONFLICT (inn) DO UPDATE SET is_bank_client = EXCLUDED.is_bank_client, "
+                "checked_at = EXCLUDED.checked_at",
+                [(inn, flag, checked_at) for inn, flag in found.items()],
+            )
+        conn.commit()
+        checked_inns.update(found)
+        log.info("bank_clients: обновлено %d записей, клиентов банка %d", len(found), sum(found.values()))
+
+    if missing := pending - checked_inns:
+        raise IncompleteBankLookup(f"АБС не подтвердил статус для {len(missing)} компаний")
 
 
-def rebuild_all(conn=None) -> dict:
+def rebuild_all(conn=None, *, checked_inns: set[str] | None = None) -> dict:
     own = conn is None
     conn = conn or connect()
     try:
         started = dt.datetime.now(dt.timezone.utc)
-        refresh_bank_clients(conn)
+        refresh_bank_clients(conn, checked_inns if checked_inns is not None else set())
         rows = snapshot.rebuild_snapshot(conn, started)  # data_as_of это время сборки
         cards = cache.publish_cards(conn)
         with _lock:
@@ -71,15 +80,20 @@ def rebuild_all(conn=None) -> dict:
 def run_forever(stop: threading.Event | None = None):
     stop = stop or threading.Event()
     backoff = 2.0
+    refresh_marker = None
+    checked_inns: set[str] = set()
     while not stop.is_set():
         try:
             conn = connect()
             try:
                 if _is_true(_load_state(conn, "initial_done")):
                     marker = _load_state(conn, "last_sync_at")
+                    if marker != refresh_marker:
+                        refresh_marker = marker
+                        checked_inns.clear()
                     if not state["built"] or marker != state["synced_marker"]:
                         log.info("Пересборка среза (last_sync_at=%s)", marker)
-                        rebuild_all(conn)
+                        rebuild_all(conn, checked_inns=checked_inns)
                         state["synced_marker"] = marker
                 backoff = 2.0
             finally:

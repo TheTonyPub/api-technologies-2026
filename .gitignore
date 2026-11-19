@@ -11,5 +11,7 @@ cmake-build-*/
 # ДЗ 4
 .env.local
 .gen/
+demo-result.json
+probe.txt
 models/*
 !models/.gitkeep

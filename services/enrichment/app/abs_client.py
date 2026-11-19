@@ -29,6 +29,20 @@ def build_payload(inns: list[str]) -> dict:
 
 def parse_response(body, requested: list[str]) -> dict[str, bool]:
     """Прочитать флаги из пакетного ответа АБС и совместимых моков."""
+    if isinstance(body, dict) and "items" in body:
+        items = body["items"]
+        if not isinstance(items, list):
+            raise ValueError("АБС вернул некорректный список")
+        requested_inns = set(requested)
+        result = {}
+        for item in items:
+            if (not isinstance(item, dict) or not isinstance(item.get("inn"), str)
+                    or not isinstance(item.get("is_bank_client"), bool)):
+                raise ValueError("АБС вернул некорректный флаг клиента")
+            if item["inn"] in requested_inns:
+                result[item["inn"]] = item["is_bank_client"]
+        return result
+
     items = body
     if isinstance(body, dict):
         items = next((body[k] for k in _LIST_KEYS if isinstance(body.get(k), list)), None)

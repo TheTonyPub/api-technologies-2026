@@ -1,20 +1,14 @@
-C4Context
-    title Контекстная диаграмма — Платформа данных по юридическим лицам
+---
+title: "C4 · Контекст платформы данных по юрлицам"
+---
+flowchart LR
+    manager["Сотрудник банка<br/>Пользователь"] --> crm["CRM<br/>Внешняя система"]
+    crm -->|REST · карточка, группа, скоринг| platform["Платформа данных по юрлицам<br/>Загружает, хранит и выдаёт сведения о компаниях"]
+    platform -->|SOAP · сведения о юрлицах| spark["СПАРК Интерфакс<br/>Внешняя система"]
+    abs["АБС<br/>Внешняя система"] -->|REST · данные компании| platform
+    platform -->|REST · признаки клиента банка| abs
 
-    Person(manager, "Сотрудник банка")
-
-    System_Ext(spark, "СПАРК Интерфакс", "Источник данных о юрлицах")
-
-    System(platform, "Платформа данных по юрлицам", "Загрузка, хранение и выдача данных о клиентах-ЮЛ")
-
-    System_Ext(crm, "CRM")
-    System_Ext(abs, "АБС")
-    System_Ext(analytics, "Аналитический контур")
-
-    Rel(platform, spark, "Запрашивает данные ЮЛ", "SOAP/XML")
-    Rel(crm, platform, "Запрашивает данные клиента", "REST/JSON")
-    Rel(abs, platform, "Запрашивает данные клиента", "REST/JSON")
-    Rel(platform, analytics, "Передаёт данные", "ETL")
-    Rel(manager, crm, "Использует")
-
-    UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")
+    classDef internal fill:#1765ac,color:#fff,stroke:#0b4274,stroke-width:2px
+    classDef external fill:#edf1f6,color:#172a40,stroke:#75859a
+    class platform internal
+    class manager,crm,spark,abs external

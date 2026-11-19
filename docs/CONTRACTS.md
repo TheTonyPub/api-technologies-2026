@@ -1,6 +1,6 @@
-# Договорённости между сервисами (черновик — согласовать и поправить)
+# Договорённости между сервисами
 
-Внешние контракты: `contracts/*/openapi.yaml` (ДЗ 2). Изменения относительно ДЗ 1–2: `docs/CHANGES-hw4.md`.
+REST-контракты сервисов находятся в `contracts/`. Действующий контракт ML Model находится в `proto/scoring.proto`. Изменения относительно ДЗ 1–2 описаны в `docs/CHANGES-hw4.md`.
 
 ## Кто с кем говорит
 ```
@@ -10,6 +10,7 @@ Gateway --REST--> Client Info | Group Companies | Scoring
 Client Info --читает--> Redis, затем Postgres (company_snapshot)
 Group Companies, Scoring --читают--> Postgres (company_snapshot)
 Scoring --gRPC--> ML Model
+Postgres (outbox) --> Go Publisher --> Kafka company.changes --> Go Processor --> Kafka company.audit
 ```
 
 ## Postgres (`db/migrations/001_init.sql`)
@@ -33,6 +34,7 @@ Scoring --gRPC--> ML Model
 ## Ошибки и X-Request-Id
 Формат `{code, message, traceId, details?}`; коды: `INVALID_REQUEST` (400), `UNAUTHORIZED` (401), `COMPANY_NOT_FOUND` (404), `INTERNAL_ERROR` (500), `SERVICE_UNAVAILABLE` (503), `UPSTREAM_TIMEOUT` (504).
 `X-Request-Id` берём из запроса или генерируем и передаём вниз. Всё это даёт `platform_common.errors.install(app)`.
+Gateway передаёт `X-Cache` из Client Info. В ответе группы `relation` может быть `null`, когда роль не пришла из СПАРК.
 
 ## gRPC (`proto/scoring.proto`)
 - `GetInfo` — список признаков модели; `Predict` — признаки по именам (`numeric` / `categorical`).

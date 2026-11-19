@@ -107,9 +107,9 @@ components:
           enum: [ACTIVE, LIQUIDATING, LIQUIDATED]
           example: ACTIVE
         relation:
-          type: string
+          type: [string, 'null']
           description: Кем компания приходится группе.
-          enum: [PARENT, SUBSIDIARY, AFFILIATE]
+          enum: [PARENT, SUBSIDIARY, AFFILIATE, null]
           example: PARENT
         isBankClient:
           type: boolean
