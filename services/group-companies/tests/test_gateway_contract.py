@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[3]
 sys.path[:0] = [str(ROOT), str(ROOT / "libs" / "common")]
 
 import httpx
+import yaml
 
 gateway = importlib.import_module("services.gateway.app.main")
 groups = importlib.import_module("services.group-companies.app.main")
@@ -85,7 +86,15 @@ class GroupGatewayTests(unittest.IsolatedAsyncioTestCase):
     async def test_unknown_group_relation_is_null(self):
         response = await self.client.get(GROUPED)
         self.assertEqual(response.status_code, 200)
-        self.assertIsNone(response.json()["members"][1]["relation"])
+        relation = response.json()["members"][1]["relation"]
+        self.assertIsNone(relation)
+        for service in ("api-gateway", "group-companies-service"):
+            with self.subTest(contract=service):
+                path = ROOT / "contracts" / service / "openapi.yaml"
+                contract = yaml.safe_load(path.read_text(encoding="utf-8"))
+                schema = contract["components"]["schemas"]["GroupMember"]["properties"]["relation"]
+                self.assertIn("null", schema["type"])
+                self.assertIn(relation, schema["enum"])
 
     async def test_group_without_bank_clients_and_company_without_group(self):
         filtered = await self.client.get(OTHER, params={"onlyBankClients": "true"})
