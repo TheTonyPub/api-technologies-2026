@@ -64,3 +64,28 @@ services:
       timeout: 5s
       retries: 5
       start_period: 20s
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  decision-service:
+    build:
+      context: .
+      dockerfile: services/decision_service/Dockerfile
+    command: python -m services.decision_service.server
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DECISION_GRPC_PORT=50052
+    ports:
+      - "50052:50052"
+    depends_on:
+      redis:
+        condition: service_healthy
