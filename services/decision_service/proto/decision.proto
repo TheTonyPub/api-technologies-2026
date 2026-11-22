@@ -1,1 +1,15 @@
-
+syntax = "proto3";
+package antifraud.decision.v1;
+service DecisionService {
+  rpc MakeDecision (DecisionRequest) returns (DecisionResponse);
+}
+message DecisionRequest {
+  string transaction_id = 1;
+  double score = 2;
+  double threshold = 3;
+}
+message DecisionResponse {
+  string transaction_id = 1;
+  int32 verdict = 2;
+  string status = 3;
+}
