@@ -12,6 +12,7 @@ cmake-build-*/
 .env.local
 .gen/
 demo-result.json
+project-check.log
 probe.txt
 models/*
 !models/.gitkeep
